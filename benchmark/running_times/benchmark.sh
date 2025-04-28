@@ -1,5 +1,6 @@
 #!/bin/bash
 
+MACHINE=142
 set -x # echo on
 set +e # Disable exit on non 0
 
@@ -8,8 +9,9 @@ TOTAL_MEMORY=$(awk '/MemTotal/{print $2}' /proc/meminfo)
 ulimit -Sv $TOTAL_MEMORY
 
 PARALLEL_ALGOS=(benchmark_ips4ooldparallel benchmark_aspasparallel benchmark_raduls benchmark_ips4oparallel benchmark_ps4oparallel benchmark_mcstlbq benchmark_mcstlubq benchmark_tbbparallelsort benchmark_regionsort benchmark_pbbsradixsort benchmark_pbbssamplesort benchmark_mcstlmwm benchmark_imsdradix benchmark_ips2raparallel)
-SEQUENTIAL_ALGOS=(benchmark_skasort benchmark_yaroslavskiy benchmark_blockquicksort benchmark_wikisort benchmark_timsort benchmark_pdqsort benchmark_stdsort benchmark_ssss benchmark_ips4o benchmark_ps4o  benchmark_quickxsort benchmark_ippradixsort benchmark_learnedsort benchmark_ips2ra)
-
+PARALLEL_ALGOS=(benchmark_ips4oparallel benchmark_mysort)
+# SEQUENTIAL_ALGOS=(benchmark_skasort benchmark_yaroslavskiy benchmark_blockquicksort benchmark_wikisort benchmark_timsort benchmark_pdqsort benchmark_stdsort benchmark_ssss benchmark_ips4o benchmark_ps4o  benchmark_quickxsort benchmark_ippradixsort benchmark_learnedsort benchmark_ips2ra)
+SEQUENTIAL_ALGOS=()
 DATATYPES=(double uint32 uint64 pair qtuple byte)
 GENERATORS=(random sorted reverse rootdupls zero zipf qtuple byte exponential twicedupes eightdupes almostsorted)
 
