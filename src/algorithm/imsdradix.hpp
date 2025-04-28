@@ -26,7 +26,8 @@
 
 #include <cstdint>
 #include <string>
-
+#include <thread>
+#include <vector>
 #include <numa.h>
 
 extern "C" {

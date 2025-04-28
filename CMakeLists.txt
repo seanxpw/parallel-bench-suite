@@ -1,10 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
-
+# cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
 project(ips4o-benchmark-suite)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(default_build_type)
+
+#TBB path
+set(CMAKE_PREFIX_PATH "/home/csgrads/xwang605/oneTBB/install" ${CMAKE_PREFIX_PATH})
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++17 -DNDEBUG -march=native")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -march=native")
@@ -32,7 +35,7 @@ message(STATUS "IPS4o timer: ${IPS4O_TIMER}")
 
 add_subdirectory(extern/InPlaceMSDradixsort)
 add_subdirectory(extern/NumaArray)
-add_subdirectory(extern/tbb)
+# add_subdirectory(extern/tbb)
 add_subdirectory(extern/CPPSFMT)
 add_subdirectory(extern/SortChecker)
 add_subdirectory(extern/RADULS)
@@ -45,9 +48,13 @@ add_subdirectory(extern/ips4o_journal)
 add_subdirectory(extern/ips2ra_journal)
 add_subdirectory(extern/ps4o)
 
+# hwloc
+include_directories(/home/csgrads/xwang605/local/include)
+link_directories(/home/csgrads/xwang605/local/lib)
+find_library(NUMA_LIBRARY numa PATHS /home/csgrads/xwang605/opt/numactl/lib)
 # Global libraries
-link_libraries(tlx checker dsfmt numa  numa_array hwloc)
-
+link_libraries(tlx checker dsfmt hwloc numa numa_array)
+link_directories(/home/csgrads/xwang605/opt/numactl/lib)
 ## pthreads for parallel data generation and checking
 find_package(Threads REQUIRED)
 link_libraries(Threads::Threads)
@@ -85,24 +92,24 @@ target_link_libraries(benchmark_ips2raparallel PRIVATE ips2ra)
 add_executable (benchmark_mcstlmwm src/benchmark/benchmark_mcstlmwm.cpp)
 add_executable (benchmark_mcstlbq src/benchmark/benchmark_mcstlbq.cpp)
 add_executable (benchmark_mcstlubq src/benchmark/benchmark_mcstlubq.cpp)
-add_executable (benchmark_tbbparallelsort src/benchmark/benchmark_tbbparallelsort.cpp)
+# add_executable (benchmark_tbbparallelsort src/benchmark/benchmark_tbbparallelsort.cpp)
 
-add_executable (benchmark_regionsort src/benchmark/benchmark_regionsort.cpp)
-target_link_libraries(benchmark_regionsort PRIVATE cilkrts)
-target_compile_options(benchmark_regionsort PRIVATE -fcilkplus -DCILKP -DBITS_HACK -DLONG_ARRAY)
+# add_executable (benchmark_regionsort src/benchmark/benchmark_regionsort.cpp)
+# target_link_libraries(benchmark_regionsort PRIVATE cilkrts)
+# target_compile_options(benchmark_regionsort PRIVATE -fcilkplus -DCILKP -DBITS_HACK -DLONG_ARRAY)
 
 
-add_executable (benchmark_pbbsradixsort src/benchmark/benchmark_pbbsradixsort.cpp)
-add_executable (benchmark_pbbssamplesort src/benchmark/benchmark_pbbssamplesort.cpp)
-target_link_libraries(benchmark_pbbsradixsort PRIVATE cilkrts)
-target_compile_options(benchmark_pbbsradixsort PRIVATE -fcilkplus)
-target_link_libraries(benchmark_pbbssamplesort PRIVATE cilkrts)
-target_compile_options(benchmark_pbbssamplesort PRIVATE -fcilkplus)
+# add_executable (benchmark_pbbsradixsort src/benchmark/benchmark_pbbsradixsort.cpp)
+# add_executable (benchmark_pbbssamplesort src/benchmark/benchmark_pbbssamplesort.cpp)
+# target_link_libraries(benchmark_pbbsradixsort PRIVATE cilkrts)
+# target_compile_options(benchmark_pbbsradixsort PRIVATE -fcilkplus)
+# target_link_libraries(benchmark_pbbssamplesort PRIVATE cilkrts)
+# target_compile_options(benchmark_pbbssamplesort PRIVATE -fcilkplus)
 
-target_link_libraries(benchmark_pbbsradixsort PRIVATE cilkrts)
-target_compile_options(benchmark_pbbsradixsort PRIVATE -fcilkplus)
-target_link_libraries(benchmark_pbbssamplesort PRIVATE cilkrts)
-target_compile_options(benchmark_pbbssamplesort PRIVATE -fcilkplus)
+# target_link_libraries(benchmark_pbbsradixsort PRIVATE cilkrts)
+# target_compile_options(benchmark_pbbsradixsort PRIVATE -fcilkplus)
+# target_link_libraries(benchmark_pbbssamplesort PRIVATE cilkrts)
+# target_compile_options(benchmark_pbbssamplesort PRIVATE -fcilkplus)
 
 add_executable (benchmark_aspasparallel src/benchmark/benchmark_aspasparallel.cpp)
 add_executable (benchmark_skasort src/benchmark/benchmark_skasort.cpp)
@@ -158,13 +165,16 @@ if ("${IPPRADIXSORT}" STREQUAL "Enable")
   target_link_libraries(benchmark_ippradixsort PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
+set(CMAKE_PREFIX_PATH "/home/csgrads/xwang605/oneTBB/install" ${CMAKE_PREFIX_PATH})
+find_package(TBB REQUIRED)
+# target_link_libraries(ips4o INTERFACE TBB::tbb)
 # TBB
-target_link_libraries(benchmark_ps4oparallel PRIVATE  atomic tbb_static)
-target_link_libraries(benchmark_ips4ooldparallel PRIVATE  atomic tbb_static)
-target_link_libraries(benchmark_ips4oparallel PRIVATE  atomic tbb_static)
-target_link_libraries(benchmark_ips2raparallel PRIVATE  atomic tbb_static)
-target_link_libraries(benchmark_tbbparallelsort PRIVATE  tbb_static)
+target_link_libraries(benchmark_ps4oparallel PRIVATE  atomic TBB::tbb)
+target_link_libraries(benchmark_ips4ooldparallel PRIVATE  atomic TBB::tbb)
+target_link_libraries(benchmark_ips4oparallel PRIVATE  atomic TBB::tbb)
+target_link_libraries(benchmark_ips2raparallel PRIVATE  atomic TBB::tbb)
+# target_link_libraries(benchmark_tbbparallelsort PRIVATE  TBB::tbb)
 # Sequential algorithms
-target_link_libraries(benchmark_ps4o PRIVATE  atomic tbb_static)
-target_link_libraries(benchmark_ips4o PRIVATE  atomic tbb_static)
-target_link_libraries(benchmark_ips2ra PRIVATE  atomic tbb_static)
+target_link_libraries(benchmark_ps4o PRIVATE  atomic TBB::tbb)
+target_link_libraries(benchmark_ips4o PRIVATE  atomic TBB::tbb)
+target_link_libraries(benchmark_ips2ra PRIVATE  atomic TBB::tbb)
