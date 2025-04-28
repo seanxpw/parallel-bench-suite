@@ -92,13 +92,13 @@ target_link_libraries(benchmark_ips2raparallel PRIVATE ips2ra)
 add_executable (benchmark_mcstlmwm src/benchmark/benchmark_mcstlmwm.cpp)
 add_executable (benchmark_mcstlbq src/benchmark/benchmark_mcstlbq.cpp)
 add_executable (benchmark_mcstlubq src/benchmark/benchmark_mcstlubq.cpp)
-# add_executable (benchmark_tbbparallelsort src/benchmark/benchmark_tbbparallelsort.cpp)
+# add_executable (benchmark_tbbparallelsort src/benchmark/benchmark_tbbparallelsort.cpp) it uses old TBB API
 
 # add_executable (benchmark_regionsort src/benchmark/benchmark_regionsort.cpp)
 # target_link_libraries(benchmark_regionsort PRIVATE cilkrts)
 # target_compile_options(benchmark_regionsort PRIVATE -fcilkplus -DCILKP -DBITS_HACK -DLONG_ARRAY)
 
-
+# I don't have cilkrts installed
 # add_executable (benchmark_pbbsradixsort src/benchmark/benchmark_pbbsradixsort.cpp)
 # add_executable (benchmark_pbbssamplesort src/benchmark/benchmark_pbbssamplesort.cpp)
 # target_link_libraries(benchmark_pbbsradixsort PRIVATE cilkrts)
