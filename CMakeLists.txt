@@ -178,3 +178,8 @@ target_link_libraries(benchmark_ips2raparallel PRIVATE  atomic TBB::tbb)
 target_link_libraries(benchmark_ps4o PRIVATE  atomic TBB::tbb)
 target_link_libraries(benchmark_ips4o PRIVATE  atomic TBB::tbb)
 target_link_libraries(benchmark_ips2ra PRIVATE  atomic TBB::tbb)
+
+
+#MySort
+add_executable (benchmark_mysort src/benchmark/benchmark_mysort.cpp)
+target_include_directories(benchmark_mysort PRIVATE extern/project1-sorting-seanxpw)
