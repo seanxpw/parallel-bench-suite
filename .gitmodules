@@ -67,3 +67,6 @@
 [submodule "extern/project1-sorting-seanxpw"]
 	path = extern/project1-sorting-seanxpw
 	url = https://github.com/ucrparlay-class/project1-sorting-seanxpw.git
+[submodule "extern/parlaylib"]
+	path = extern/parlaylib
+	url = git@github.com:cmuparlay/parlaylib.git
