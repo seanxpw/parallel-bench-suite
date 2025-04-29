@@ -5,6 +5,7 @@ project(ips4o-benchmark-suite)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(default_build_type)
+add_definitions(-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS) # sometimes it says cannot identify uint64_t in txl
 
 #TBB path
 set(CMAKE_PREFIX_PATH "/home/csgrads/xwang605/oneTBB/install" ${CMAKE_PREFIX_PATH})
@@ -183,3 +184,12 @@ target_link_libraries(benchmark_ips2ra PRIVATE  atomic TBB::tbb)
 #MySort
 add_executable (benchmark_mysort src/benchmark/benchmark_mysort.cpp)
 target_include_directories(benchmark_mysort PRIVATE extern/project1-sorting-seanxpw)
+
+# ParlayLib
+add_library(parlaylib INTERFACE)
+target_include_directories(parlaylib INTERFACE extern/parlaylib/include)
+
+
+#PLSS
+add_executable (benchmark_plss src/benchmark/benchmark_plss.cpp)
+target_link_libraries(benchmark_plss PRIVATE parlaylib)

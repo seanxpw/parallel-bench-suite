@@ -11,3 +11,4 @@ benchmark/running_times/b1*.txt
 *.aux
 *.out
 *.pdf
+run
