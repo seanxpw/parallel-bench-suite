@@ -1,8 +1,19 @@
-# In-place Parallel Super Scalar Samplesort (IPS⁴o) Benchmark Suite
+# Parallel algorithm Benchmark Suite
 
 This is the benchmark suite of IPS⁴o presented in the paper [In-place Parallel Super Scalar Samplesort (IPS⁴o)](https://arxiv.org/abs/1705.02257) (todo update link).
 The benchmark suite compares our algorithms IPS⁴o [(GitHub link)](https://github.com/ips4o/ips4o), In-place Parallel Super Scalar Radix Sort (IPS²Ra) [(GitHub link)](https://github.com/ips4o/ips2ra), and Parallel Super Scalar Samplesort (PS⁴o) [(GitHub link)](https://github.com/ips4o/ps4o), to various sequential and parallel radix as well as comparison based sorting algorithms.
 Here's the abstract:
+
+## TODO
+
+- [ ] Add Generator
+    - [ ] Implement graph generator
+    - [ ] Implement database generator
+- [ ] Add a way of detecting memory usage
+- [ ] Extend the `run.sh`
+- [ ] Generate graphs based on that
+- [ ] Add interface for faster module selection
+
 
 (todo update)
 > We present a sorting algorithm that works in-place, executes in parallel, is

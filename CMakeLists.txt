@@ -199,3 +199,6 @@ target_include_directories(parlaylib INTERFACE extern/parlaylib/include)
 #PLSS
 add_executable (benchmark_plss src/benchmark/benchmark_plss.cpp)
 target_link_libraries(benchmark_plss PRIVATE parlaylib)
+
+add_executable(benchmark_dovetailsort src/benchmark/benchmark_dovetailsort.cpp)
+target_include_directories(benchmark_dovetailsort PRIVATE extern/DovetailSort/include/parlay)

@@ -16,18 +16,18 @@ BUILD_DIR="/home/csgrads/xwang605/parallel-bench-suite/build"
 # List of algorithms (executable names) to benchmark, separated by spaces
 # Ensure these executables exist in BUILD_DIR
 # Example: ALGOS=("benchmark_algo1" "benchmark_algo2")
-ALGOS=("benchmark_ips4oparallel" "benchmark_mysort" "benchmark_plss") # Add your actual algorithm names here
+ALGOS=("benchmark_ips4oparallel" "benchmark_mysort" "benchmark_plss" "benchmark_dovetailsort") # Add your actual algorithm names here
 
 # Data types to test
 DATATYPES=("double" "uint32" "uint64")
 
 # Input data generators to test
-GENERATORS=("random" "sorted" "reverse")
+GENERATORS=("random" "sorted" "reverse" "zipf_para")
 
 # Log base 2 of the minimum number of elements (e.g., 31 for 2^31)
-MIN_LOG=28
+MIN_LOG=30
 # Log base 2 of the maximum number of elements
-MAX_LOG=28
+MAX_LOG=30
 # Number of runs for each configuration
 NUM_RUNS=5
 
