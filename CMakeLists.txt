@@ -1,3 +1,6 @@
+# cmake -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
+# clang is so problematic try to use g++
+
 cmake_minimum_required(VERSION 3.10)
 # cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
 project(ips4o-benchmark-suite)
@@ -10,8 +13,11 @@ add_definitions(-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS) # sometimes it s
 #TBB path
 set(CMAKE_PREFIX_PATH "/home/csgrads/xwang605/oneTBB/install" ${CMAKE_PREFIX_PATH})
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++17 -DNDEBUG -march=native")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -march=native")
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON) # C++20
+
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}  -DNDEBUG -march=native -include cstdint") #-include cstdint is for tlx
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}  -march=native -include cstdint")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG -march=native")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -march=native")
 # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -static-libasan -fsanitize=address")
@@ -39,7 +45,7 @@ add_subdirectory(extern/NumaArray)
 # add_subdirectory(extern/tbb)
 add_subdirectory(extern/CPPSFMT)
 add_subdirectory(extern/SortChecker)
-add_subdirectory(extern/RADULS)
+# add_subdirectory(extern/RADULS)
 
 # Disable parallel as we do not use the default libraries
 option(IPS4O_DISABLE_PARALLEL "Enable parallel code of IPS4o" ON)
@@ -61,19 +67,19 @@ find_package(Threads REQUIRED)
 link_libraries(Threads::Threads)
 
 # Data generator
-add_executable(gen src/datagenerator.cpp)
+# add_executable(gen src/datagenerator.cpp)
 
 # Benchmark executables
-add_executable (benchmark_raduls src/benchmark/benchmark_raduls.cpp)
-target_link_libraries(benchmark_raduls PRIVATE raduls)
+# add_executable (benchmark_raduls src/benchmark/benchmark_raduls.cpp) #seems not support clang
+# target_link_libraries(benchmark_raduls PRIVATE raduls)
 # target_include_directories(benchmark_raduls PRIVATE extern/RADULS)
 
 add_executable (benchmark_imsdradix src/benchmark/benchmark_imsdradix.cpp)
 target_link_libraries(benchmark_imsdradix PRIVATE inpmsdradix)
 
 
-add_executable (benchmark_ps4oparallel src/benchmark/benchmark_ps4oparallel.cpp)
-target_link_libraries(benchmark_ps4oparallel PRIVATE ps4o)
+# add_executable (benchmark_ps4oparallel src/benchmark/benchmark_ps4oparallel.cpp)
+# target_link_libraries(benchmark_ps4oparallel PRIVATE ps4o)
 add_executable (benchmark_ps4o src/benchmark/benchmark_ps4o.cpp)
 target_link_libraries(benchmark_ps4o PRIVATE ps4o)
 
@@ -138,10 +144,10 @@ target_include_directories(benchmark_aspas PRIVATE extern/aspas_sort/include)
 
 # OMP
 find_package(OpenMP REQUIRED)
-target_link_libraries(gen PUBLIC OpenMP::OpenMP_CXX)
-target_link_libraries(benchmark_raduls PUBLIC OpenMP::OpenMP_CXX)
+# target_link_libraries(gen PUBLIC OpenMP::OpenMP_CXX)
+# target_link_libraries(benchmark_raduls PUBLIC OpenMP::OpenMP_CXX)
 target_link_libraries(benchmark_imsdradix PUBLIC OpenMP::OpenMP_CXX)
-target_link_libraries(benchmark_ps4oparallel PUBLIC OpenMP::OpenMP_CXX)
+# target_link_libraries(benchmark_ps4oparallel PUBLIC OpenMP::OpenMP_CXX)
 target_link_libraries(benchmark_ips4ooldparallel PUBLIC OpenMP::OpenMP_CXX)
 target_link_libraries(benchmark_ips4oparallel PUBLIC OpenMP::OpenMP_CXX)
 target_link_libraries(benchmark_ips2raparallel PUBLIC OpenMP::OpenMP_CXX)
@@ -170,7 +176,7 @@ set(CMAKE_PREFIX_PATH "/home/csgrads/xwang605/oneTBB/install" ${CMAKE_PREFIX_PAT
 find_package(TBB REQUIRED)
 # target_link_libraries(ips4o INTERFACE TBB::tbb)
 # TBB
-target_link_libraries(benchmark_ps4oparallel PRIVATE  atomic TBB::tbb)
+# target_link_libraries(benchmark_ps4oparallel PRIVATE  atomic TBB::tbb)
 target_link_libraries(benchmark_ips4ooldparallel PRIVATE  atomic TBB::tbb)
 target_link_libraries(benchmark_ips4oparallel PRIVATE  atomic TBB::tbb)
 target_link_libraries(benchmark_ips2raparallel PRIVATE  atomic TBB::tbb)

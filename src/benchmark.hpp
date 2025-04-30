@@ -153,6 +153,90 @@ void exec(const Config& config) {
     }
 }
 
+//  this is an overload to receive on more parameter as index for the generator
+template <class T, class Generator, class Algo, template <class T1> class Vector>
+void exec(const Config& config, const size_t index) {
+    // std::vector<T> v;
+    const auto [min_log_size, max_log_size] = logSizes<T>(config);
+
+    Generator gen;
+    for (size_t size = (1ul << min_log_size); size <= (1ul << max_log_size); size *= 2) {
+        // v.resize(size);
+        Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
+        assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
+        for (int run = 0; run != numRuns<T>(config, size, Algo::isParallel()); ++run) {
+            auto start_gen = std::chrono::high_resolution_clock::now();
+            gen(v.get(), v.get() + size, index);
+            const auto copyback = !Algo::isParallel() || config.copyback;
+            if (copyback) {
+                // Copy data into a new array by the main thread as the
+                // parallel generators may create pages at all numa nodes.
+                Vector<T> v1(size, std::max<size_t>(16, ALIGNMENT));
+                std::copy(v.get(), v.get() + size, v1.get());
+                v = std::move(v1);
+            }
+            auto finish_gen = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> elapsed_gen =
+                    finish_gen - start_gen;
+
+            auto start_checker = std::chrono::high_resolution_clock::now();
+            ParallelChecker<T> checker;
+            checker.add_pre(v.get(), v.get() + size);
+            auto finish_checker = std::chrono::high_resolution_clock::now();
+            double time_checker = std::chrono::duration<double, std::milli>(
+                                          finish_checker - start_checker)
+                                          .count();
+
+            const auto [preprocessing, sorting] = Algo::template sort<T, Vector>(
+                    v.get(), v.get() + size, config.num_threads);
+
+            start_checker = std::chrono::high_resolution_clock::now();
+            checker.add_post(v.get(), v.get() + size, Datatype<T>::getComparator());
+            finish_checker = std::chrono::high_resolution_clock::now();
+            time_checker += std::chrono::duration<double, std::milli>(finish_checker
+                                                                      - start_checker)
+                                    .count();
+
+            std::cout << "RESULT"
+                      << "\tmachine=" << config.machine << "\tgen=" << Generator::name() <<"_" << index
+                      << "\tdatatype=" << Datatype<T>::name() << "\talgo=" << Algo::name()
+                      << "\tparallel=" << Algo::isParallel()
+                      << "\tthreads=" << config.num_threads
+                      << "\tvector=" << Vector<T>::name() << "\tcopyback=" << copyback
+                      << "\tsize=" << size << "\trun=" << run
+                      << "\tbenchmarkconfigerror=0"
+                      << "\tcheckermilli=" << time_checker
+                      << "\tgeneratormilli=" << elapsed_gen.count()
+                      << "\tpreprocmilli=" << preprocessing << "\tmilli=" << sorting
+                      << "\tsortedsequence="
+                      << checker.is_likely_sorted(Datatype<T>::getComparator())
+                      << "\tpermutation=" << checker.is_likely_permutated()
+                      << config.info;
+
+#ifdef IPS4O_TIMER
+            std::cout << "\tbasecase=" << g_base_case.getTime()
+                      << "\tsampling=" << g_sampling.getTime()
+                      << "\tclassificationphase=" << g_classification.getTime()
+                      << "\tpermutationphase=" << g_permutation.getTime()
+                      << "\tcleanup=" << g_cleanup.getTime()
+                      << "\toverhead=" << g_overhead.getTime()
+                      << "\temptyblock=" << g_empty_block.getTime()
+                      << "\ttotal=" << g_total.getTime();
+            g_base_case.reset();
+            g_sampling.reset();
+            g_classification.reset();
+            g_permutation.reset();
+            g_cleanup.reset();
+            g_overhead.reset();
+            g_empty_block.reset();
+            g_total.reset();
+#endif
+
+            std::cout << std::endl;
+        }
+    }
+}
+
 template <class T, class Generator, class Algo>
 void selectAndExecVector(const Config& config) {
     if (std::find(config.vectors.begin(), config.vectors.end(),
@@ -166,6 +250,22 @@ void selectAndExecVector(const Config& config) {
         exec<T, Generator, Algo, Numa::AlignedArray>(config);
     }
 }
+
+// overload for the generator with index
+template <class T, class Generator, class Algo>
+void selectAndExecVector(const Config& config, const size_t index) {
+    if (std::find(config.vectors.begin(), config.vectors.end(),
+                  AlignedUniquePtr<T>::name())
+        != config.vectors.end()) {
+        exec<T, Generator, Algo, AlignedUniquePtr>(config,index);
+    }
+    if (std::find(config.vectors.begin(), config.vectors.end(),
+                  Numa::AlignedArray<T>::name())
+        != config.vectors.end()) {
+        exec<T, Generator, Algo, Numa::AlignedArray>(config,index);
+    }
+}
+
 
 template <class T, class Generator, class Algorithms>
 void selectAndExecAlgo(const Config& config) {
@@ -187,53 +287,108 @@ void selectAndExecAlgo(const Config& config) {
     }
 }
 
-template <class T, class Algorithms, class Generators>
-void selectAndExecGenerators(const Config& config) {
-    using Generator = typename Generators::SequenceClass;
-    for (const auto generator : config.generators) {
-        if (!Generator::name().compare(generator)) {
-            if constexpr (Generator::template accepts<T>()) {
-                selectAndExecAlgo<T, Generator, Algorithms>(config);
+// overload for the generator with index
+template <class T, class Generator, class Algorithms>
+void selectAndExecAlgo(const Config& config, size_t index) {
+    using Algorithm = typename Algorithms::SequenceClass;
+    for (const auto algo : config.algos) {
+        if (!Algorithm::name().compare(algo)) {
+            if constexpr (Algorithm::template accepts<T>()) {
+                selectAndExecVector<T, Generator, Algorithm>(config,index);
             } else {
+                std::cout << "RESULT"
+                          << "\talgo=" << Algorithm::name() << "\tconfigwarning=1"
+                          << "\tdatatype=" << Datatype<T>::name() << std::endl;
+            }
+        }
+    }
+
+    if constexpr (!Algorithms::isLast()) {
+        selectAndExecAlgo<T, Generator, typename Algorithms::SubSequence>(config,index);
+    }
+}
+
+template <class T, class Algorithms, class Generators>
+void selectAndExecGenerators(const Config &config)
+{
+    using Generator = typename Generators::SequenceClass;
+    for (const auto generator : config.generators)
+    {
+        if (!Generator::name().compare(generator))
+        {
+            if constexpr (Generator::template accepts<T>())
+            {
+                // ***USE THE TYPE TRAIT HERE ***
+                    // Check if Generator inherits from ParameterizedGeneratorBase<Generator>
+                    if constexpr (is_parameterized_generator_v<Generator>) // is_parameterized_generator_v defined in generator.hpp
+                {
+                    // --- Generator IS Parameterized ---
+                    // Ensure it defines num_params() - Add compile-time check
+                    // (This checks if Generator::num_params() exists and returns something convertible to size_t)
+                    // static_assert(requires { { Generator::num_params() } -> std::convertible_to<size_t>; }, "Parameterized generator must provide static size_t num_params()");
+
+                    // Loop through all parameter sets using the index
+                    for (size_t index = 0; index < Generator::num_params(); ++index)
+                    {
+
+                        // Call the selectAndExecAlgo overload that ACCEPTS the index
+                        selectAndExecAlgo<T, Generator, Algorithms>(config, index);
+                    }
+                }
+                else // Generator is NOT Parameterized
+                {
+                    // --- Generator is NOT Parameterized ---
+                    // Call the selectAndExecAlgo overload that does NOT take an index
+                    selectAndExecAlgo<T, Generator, Algorithms>(config);
+                }
+            }
+            else
+            {
                 std::cout << "RESULT"
                           << "\tgen=" << Generator::name() << "\tconfigwarning=1"
                           << "\tdatatype=" << Datatype<T>::name() << std::endl;
             }
         }
     }
-
-    if constexpr (!Generators::isLast()) {
+    if constexpr (!Generators::isLast())
+    {
         selectAndExecGenerators<T, Algorithms, typename Generators::SubSequence>(config);
     }
 }
 
-template <class Algorithms, class Datatypes>
-void selectAndExecDatatype(const Config& config) {
-    using TypeDescription = typename Datatypes::SequenceClass;
-    using T = typename TypeDescription::value_type;
+    template <class Algorithms, class Datatypes>
+    void selectAndExecDatatype(const Config &config)
+    {
+        using TypeDescription = typename Datatypes::SequenceClass;
+        using T = typename TypeDescription::value_type;
 
-    const std::string type_name = TypeDescription::name();
-    for (const auto datatype : config.datatypes) {
-        if (!type_name.compare(datatype)) {
-            selectAndExecGenerators<T, Algorithms, Generators>(config);
+        const std::string type_name = TypeDescription::name();
+        for (const auto datatype : config.datatypes)
+        {
+            if (!type_name.compare(datatype))
+            {
+                selectAndExecGenerators<T, Algorithms, Generators>(config);
+            }
+        }
+
+        if constexpr (!Datatypes::isLast())
+        {
+            selectAndExecDatatype<Algorithms, typename Datatypes::SubSequence>(config);
         }
     }
 
-    if constexpr (!Datatypes::isLast()) {
-        selectAndExecDatatype<Algorithms, typename Datatypes::SubSequence>(config);
+    template <class Algorithms>
+    void benchmark(const Config &config)
+    {
+        selectAndExecDatatype<Algorithms, Datatypes>(config);
     }
-}
 
-template <class Algorithms>
-void benchmark(const Config& config) {
-    selectAndExecDatatype<Algorithms, Datatypes>(config);
-}
+    inline Config readParameters(int argc, char *argv[],
+                                 std::vector<std::string> algo_allowed)
+    {
+        Config config;
 
-inline Config readParameters(int argc, char* argv[],
-                             std::vector<std::string> algo_allowed) {
-    Config config;
-
-    try {
+        try {
         TCLAP::CmdLine cmd("Benchmark of different Algorithms", ' ', "0.1");
 
         std::vector<std::string> generator_allowed = NameExtractor<Generators>();
