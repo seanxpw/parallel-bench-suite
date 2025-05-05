@@ -160,8 +160,14 @@ void exec(const Config& config, const size_t index) {
     const auto [min_log_size, max_log_size] = logSizes<T>(config);
 
     Generator gen;
-    for (size_t size = (1ul << min_log_size); size <= (1ul << max_log_size); size *= 2) {
-        // v.resize(size);
+
+    // is real world generator
+    constexpr bool is_real_world = std::is_base_of_v<RealWorldData, Generator>;
+
+    for (size_t size = (1ul << min_log_size); size <= (1ul << max_log_size) ||  is_real_world; size *= 2) {
+        if constexpr (is_real_world) {
+            size = static_cast<const RealWorldData&>(gen).getSize(index);
+        }
         Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
         assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
         for (int run = 0; run != numRuns<T>(config, size, Algo::isParallel()); ++run) {
@@ -234,7 +240,11 @@ void exec(const Config& config, const size_t index) {
 
             std::cout << std::endl;
         }
-    }
+   
+        if constexpr (is_real_world) {
+            break; // Real-world dataset only has one size
+        }
+    }// end size for loop
 }
 
 template <class T, class Generator, class Algo>

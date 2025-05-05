@@ -526,5 +526,6 @@ using Generators =
         Sequence<false, GenExponential,
         Sequence<false, GenTwicedupes,
         Sequence<false, GenEightdupes,
+        Sequence<false, GenGraph,
         Sequence<true,  GenAlmostsorted
-    >>>>>>>>>>>>>;
+    >>>>>>>>>>>>>>;
