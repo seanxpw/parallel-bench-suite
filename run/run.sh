@@ -22,7 +22,7 @@ ALGOS=("benchmark_ips4oparallel" "benchmark_mysort" "benchmark_plss" "benchmark_
 DATATYPES=("double" "uint32" "uint64")
 
 # Input data generators to test
-GENERATORS=("random" "sorted" "reverse" "zipf_para")
+GENERATORS=( "zipf_para")
 
 # Log base 2 of the minimum number of elements (e.g., 31 for 2^31)
 MIN_LOG=30

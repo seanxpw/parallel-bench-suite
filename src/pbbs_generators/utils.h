@@ -30,7 +30,7 @@
 // Part of Project Ips4o Benchmark Suite - https://github.com/MichaelAxtmann/ips4o-benchmark-suite
 //
 // Copyright (c) 2020 Michael Axtmann <michael.axtmann@gmail.com>
-
+#pragma once
 #include <cstdint>
 
 inline uint64_t hash64(uint64_t key) {
