@@ -204,7 +204,7 @@ void exec(const Config& config, const size_t index) {
                                     .count();
 
             std::cout << "RESULT"
-                      << "\tmachine=" << config.machine << "\tgen=" << Generator::name() <<"_" << index
+                      << "\tmachine=" << config.machine << "\tgen=" << Generator::name(index)
                       << "\tdatatype=" << Datatype<T>::name() << "\talgo=" << Algo::name()
                       << "\tparallel=" << Algo::isParallel()
                       << "\tthreads=" << config.num_threads
