@@ -33,28 +33,26 @@
 
 using namespace std;
 
-// 读取文件并存储为 std::vector<std::pair<uint64_t, uint64_t>>
-size_t read_graph_file(const string &filename, vector<pair<uint64_t, uint64_t>> &graph)
+size_t read_graph_file(const std::string &filename, pair_t *begin, pair_t *end)
 {
-    ifstream ifs(filename);
+    std::ifstream ifs(filename);
     if (!ifs.is_open())
     {
-        cerr << "Error: Cannot open file " << filename << '\n';
-        exit(1);
+        throw std::runtime_error("Error: Cannot open file " + filename);
     }
 
+    size_t line_count = 0;
     uint64_t key, value;
-    size_t line_count = 0; // 用于计数行数
-    while (ifs >> key >> value)
-    {
-        graph.emplace_back(key, value);
 
-        // 打印前 10 行数据
-        if (line_count < 10)
+    for (auto it = begin; it != end && ifs >> key >> value; ++it)
+    {
+        *it = pair_t(key, value);
+        ++line_count;
+
+        if (line_count <= 10)
         {
-            cout << "Line " << line_count + 1 << ": (" << key << ", " << value << ")" << endl;
+            std::cout << "Line " << line_count << ": (" << key << ", " << value << ")" << std::endl;
         }
-        line_count++;
     }
 
     ifs.close();
@@ -186,8 +184,8 @@ public:
 
     // 2. Define the list of parameter sets for THIS generator
     static constexpr std::array<ParamStruct, 2> param_list = {
-        ParamStruct{"/data/zmen002/kdtree/real_word/hilbert_code.in",0}, // Parameter set 0 (index 0)
-        ParamStruct{"/data/zmen002/kdtree/real_word/morton_code.in",0}   // Parameter set 1 (index 1)
+        ParamStruct{"/data/zmen002/kdtree/real_world/hilbert_code.in", 0}, // Parameter set 0 (index 0)
+        ParamStruct{"/data/zmen002/kdtree/real_world/morton_code.in", 0}   // Parameter set 1 (index 1)
     };
 
     // 3. Define num_params (required by Base or trait checks)
@@ -222,8 +220,15 @@ public:
         const ParamStruct &current_params = param_list[param_index];
         const string file_path = current_params.filename;
         static_assert(std::is_same_v<T, pair_t>);
-        vector<pair<uint64_t, uint64_t>> graph_data;
-        read_graph_file(file_path, graph_data);
+        size_t num_elements = std::distance(begin, end);
+        size_t filled_count = read_graph_file(file_path, begin, begin + num_elements);
+
+        // fill the rest with 0
+        if (filled_count < num_elements)
+        {
+            printf("Warning: File %s has only %zu elements, filling the rest with 0\n", file_path.c_str(), filled_count);
+            std::fill(begin + filled_count, end, pair_t(0, 0));
+        }
 
     } // End operator()
 
@@ -233,10 +238,9 @@ public:
         {
             throw std::out_of_range("Invalid parameter index for GenGraph::getSize");
         }
-        
 
         const ParamStruct &current_params = param_list[param_index];
-        if(current_params.size != 0)
+        if (current_params.size != 0)
         {
             return current_params.size;
         }
