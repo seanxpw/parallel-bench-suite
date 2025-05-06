@@ -11,7 +11,7 @@ include(default_build_type)
 add_definitions(-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS) # sometimes it says cannot identify uint64_t in txl
 
 #TBB path
-set(CMAKE_PREFIX_PATH "/home/csgrads/xwang605/oneTBB/install" ${CMAKE_PREFIX_PATH})
+set(CMAKE_PREFIX_PATH "$ENV{HOME}/oneTBB/install" ${CMAKE_PREFIX_PATH})
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON) # C++20
@@ -56,12 +56,12 @@ add_subdirectory(extern/ips2ra_journal)
 add_subdirectory(extern/ps4o)
 
 # hwloc
-include_directories(/home/csgrads/xwang605/local/include)
-link_directories(/home/csgrads/xwang605/local/lib)
-find_library(NUMA_LIBRARY numa PATHS /home/csgrads/xwang605/opt/numactl/lib)
+include_directories($ENV{HOME}/local/include)
+link_directories($ENV{HOME}/local/lib)
+find_library(NUMA_LIBRARY numa PATHS $ENV{HOME}/opt/numactl/lib)
 # Global libraries
 link_libraries(tlx checker dsfmt hwloc numa numa_array)
-link_directories(/home/csgrads/xwang605/opt/numactl/lib)
+link_directories($ENV{HOME}/opt/numactl/lib)
 ## pthreads for parallel data generation and checking
 find_package(Threads REQUIRED)
 link_libraries(Threads::Threads)
@@ -172,7 +172,6 @@ if ("${IPPRADIXSORT}" STREQUAL "Enable")
   target_link_libraries(benchmark_ippradixsort PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
-set(CMAKE_PREFIX_PATH "/home/csgrads/xwang605/oneTBB/install" ${CMAKE_PREFIX_PATH})
 find_package(TBB REQUIRED)
 # target_link_libraries(ips4o INTERFACE TBB::tbb)
 # TBB
