@@ -2,6 +2,7 @@
 # clang is so problematic try to use g++
 
 cmake_minimum_required(VERSION 3.10)
+# CC=/usr/bin/gcc CXX=/usr/bin/g++ cmake .. 
 # cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
 project(ips4o-benchmark-suite)
 
