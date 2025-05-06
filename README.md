@@ -7,11 +7,10 @@ Here's the abstract:
 ## TODO
 
 - [ ] Add Generator
-    - [ ] Implement graph generator
+    - [X] Implement graph generator (finished at 5/5/2025)
     - [ ] Implement database generator
 - [ ] Add a way of detecting memory usage
 - [ ] Extend the `run.sh`
-- [ ] Generate graphs based on that
 - [ ] Add interface for faster module selection
 
 
