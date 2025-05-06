@@ -1,40 +1,37 @@
-// DovetailSort
 
 #pragma once
 
+#include <algorithm>
 #include <string>
-#include <integer_sort.h>
 
+#include <chrono>
+#include <parlay/primitives.h>
 #include "../datatypes.hpp"
 #include "../sequence.hpp"
 
-namespace DovetailSort {
+namespace PLIS {
 
-class DovetailSort {
+class PLIS {
  public:
- DovetailSort() {}
+ PLIS() {}
 
     template <class T>
     static constexpr bool accepts() {
-    
         return (Datatype<T>::hasUnsignedKey());
-        
     }
-
     static bool isParallel() { return true; }
 
-    static std::string name() { return "dovetailsort"; }
+    static std::string name() { return "parlay_integer_sort"; }
 
     template <class T, template <class T1> class Vector>
     static std::pair<double, double> sort(T* begin, T* end, size_t num_threads) {
-        static_assert(Datatype<T>::hasUnsignedKey() && Datatype<T>::hasKeyExtractor());
         parlay::slice<T*, T*> data_slice = parlay::make_slice(begin, end);
         auto start = std::chrono::high_resolution_clock::now();
-        integer_sort_inplace2(data_slice, Datatype<T>::getKeyExtractor());
+        parlay::integer_sort_inplace(data_slice, Datatype<T>::getKeyExtractor());
         auto finish = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> elapsed = finish - start;
         return {0, elapsed.count()};
     }
 };
 
-}  
+} 
