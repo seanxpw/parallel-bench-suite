@@ -50,6 +50,7 @@ constexpr uint32_t ALIGNMENT = 0x100;
 
 template <class T>
 std::pair<size_t, size_t> logSizes(const Config& config) {
+    // THe config is the amount of bytes memory useage.
     const size_t type_log_size = tlx::integer_log2_ceil(sizeof(T));
     const size_t min =
             config.begin_logn >= type_log_size ? config.begin_logn - type_log_size : 1;
@@ -155,19 +156,12 @@ void exec(const Config& config) {
 
 //  this is an overload to receive on more parameter as index for the generator
 template <class T, class Generator, class Algo, template <class T1> class Vector>
-void exec(const Config& config, const size_t index) {
+std::enable_if_t<!std::is_base_of_v<RealWorldData, Generator>, void>
+exec(const Config& config, const size_t index) {
     // std::vector<T> v;
     const auto [min_log_size, max_log_size] = logSizes<T>(config);
-
     Generator gen;
-
-    // is real world generator
-    constexpr bool is_real_world = std::is_base_of_v<RealWorldData, Generator>;
-
-    for (size_t size = (1ul << min_log_size); size <= (1ul << max_log_size) ||  is_real_world; size *= 2) {
-        if constexpr (is_real_world) {
-            size = static_cast<const RealWorldData&>(gen).getSize(index);
-        }
+    for (size_t size = (1ul << min_log_size); size <= (1ul << max_log_size); size *= 2) {
         Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
         assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
         for (int run = 0; run != numRuns<T>(config, size, Algo::isParallel()); ++run) {
@@ -240,11 +234,91 @@ void exec(const Config& config, const size_t index) {
 
             std::cout << std::endl;
         }
-   
-        if constexpr (is_real_world) {
-            break; // Real-world dataset only has one size
-        }
     }// end size for loop
+}
+
+// real world
+template <class T, class Generator, class Algo, template <class T1> class Vector>
+std::enable_if_t<std::is_base_of_v<RealWorldData, Generator>,void>
+exec(const Config &config, const size_t index)
+{
+    printf("RealWorld exec\n");
+    Generator gen;
+    size_t size = static_cast<const RealWorldData &>(gen).getSize(index);
+    printf("size is %llu\n",size);
+    Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
+    assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
+    for (int run = 0; run != numRuns<T>(config, size, Algo::isParallel()); ++run)
+    {
+        auto start_gen = std::chrono::high_resolution_clock::now();
+        gen(v.get(), v.get() + size, index);// still have to regenerate (refresh) very time.
+        const auto copyback = !Algo::isParallel() || config.copyback;
+        if (copyback)
+        {
+            // Copy data into a new array by the main thread as the
+            // parallel generators may create pages at all numa nodes.
+            Vector<T> v1(size, std::max<size_t>(16, ALIGNMENT));
+            std::copy(v.get(), v.get() + size, v1.get());
+            v = std::move(v1);
+        }
+        auto finish_gen = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed_gen =
+            finish_gen - start_gen;
+
+        auto start_checker = std::chrono::high_resolution_clock::now();
+        ParallelChecker<T> checker;
+        checker.add_pre(v.get(), v.get() + size);
+        auto finish_checker = std::chrono::high_resolution_clock::now();
+        double time_checker = std::chrono::duration<double, std::milli>(
+                                  finish_checker - start_checker)
+                                  .count();
+
+        const auto [preprocessing, sorting] = Algo::template sort<T, Vector>(
+            v.get(), v.get() + size, config.num_threads);
+
+        start_checker = std::chrono::high_resolution_clock::now();
+        checker.add_post(v.get(), v.get() + size, Datatype<T>::getComparator());
+        finish_checker = std::chrono::high_resolution_clock::now();
+        time_checker += std::chrono::duration<double, std::milli>(finish_checker - start_checker)
+                            .count();
+
+        std::cout << "RESULT"
+                  << "\tmachine=" << config.machine << "\tgen=" << Generator::name(index)
+                  << "\tdatatype=" << Datatype<T>::name() << "\talgo=" << Algo::name()
+                  << "\tparallel=" << Algo::isParallel()
+                  << "\tthreads=" << config.num_threads
+                  << "\tvector=" << Vector<T>::name() << "\tcopyback=" << copyback
+                  << "\tsize=" << size << "\trun=" << run
+                  << "\tbenchmarkconfigerror=0"
+                  << "\tcheckermilli=" << time_checker
+                  << "\tgeneratormilli=" << elapsed_gen.count()
+                  << "\tpreprocmilli=" << preprocessing << "\tmilli=" << sorting
+                  << "\tsortedsequence="
+                  << checker.is_likely_sorted(Datatype<T>::getComparator())
+                  << "\tpermutation=" << checker.is_likely_permutated()
+                  << config.info;
+
+#ifdef IPS4O_TIMER
+        std::cout << "\tbasecase=" << g_base_case.getTime()
+                  << "\tsampling=" << g_sampling.getTime()
+                  << "\tclassificationphase=" << g_classification.getTime()
+                  << "\tpermutationphase=" << g_permutation.getTime()
+                  << "\tcleanup=" << g_cleanup.getTime()
+                  << "\toverhead=" << g_overhead.getTime()
+                  << "\temptyblock=" << g_empty_block.getTime()
+                  << "\ttotal=" << g_total.getTime();
+        g_base_case.reset();
+        g_sampling.reset();
+        g_classification.reset();
+        g_permutation.reset();
+        g_cleanup.reset();
+        g_overhead.reset();
+        g_empty_block.reset();
+        g_total.reset();
+#endif
+
+        std::cout << std::endl;
+    }
 }
 
 template <class T, class Generator, class Algo>
@@ -330,7 +404,7 @@ void selectAndExecGenerators(const Config &config)
             {
                 // ***USE THE TYPE TRAIT HERE ***
                     // Check if Generator inherits from ParameterizedGeneratorBase<Generator>
-                    if constexpr (is_parameterized_generator_v<Generator>) // is_parameterized_generator_v defined in generator.hpp
+                if constexpr (is_parameterized_generator_v<Generator>) // is_parameterized_generator_v defined in generator.hpp
                 {
                     // --- Generator IS Parameterized ---
                     // Ensure it defines num_params() - Add compile-time check
