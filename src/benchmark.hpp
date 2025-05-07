@@ -1,26 +1,3 @@
-/*******************************************************************************
- * Project Ips4o Benchmark Suite
- *
- * src/benchmark.hpp
- *
- * Core of the benchmark.
- *
- * Copyright (C) 2020 Michael Axtmann <michael.axtmann@gmail.com>
- *
- * This program is free software: you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see
- * <https://www.gnu.org/licenses/>.
- ******************************************************************************/
 
 #pragma once
 
@@ -47,6 +24,7 @@
 #include "timer.hpp"
 #include "typename.hpp"
 #include "vector_types.hpp"
+#include "papi_settings.hpp"
 
 constexpr uint32_t ALIGNMENT = 0x100;
 
@@ -55,6 +33,7 @@ constexpr bool g_enable_benchmark_checker = false;
 #else
 constexpr bool g_enable_benchmark_checker = true; 
 #endif
+
 
 template <class T>
 std::pair<size_t, size_t> logSizes(const Config& config) {
@@ -320,43 +299,29 @@ exec(const Config& config, const size_t index) {
     }
 }
 
-template <class T, class Generator, class Algo>
-void selectAndExecVector(const Config& config) {
-    if (std::find(config.vectors.begin(), config.vectors.end(),
-                  AlignedUniquePtr<T>::name())
-        != config.vectors.end()) {
-        exec<T, Generator, Algo, AlignedUniquePtr>(config);
-    }
-    if (std::find(config.vectors.begin(), config.vectors.end(),
-                  Numa::AlignedArray<T>::name())
-        != config.vectors.end()) {
-        exec<T, Generator, Algo, Numa::AlignedArray>(config);
-    }
-}
 
-// overload for the generator with index
-template <class T, class Generator, class Algo>
-void selectAndExecVector(const Config& config, const size_t index) {
+template <class T, class Generator, class Algo, typename... Args>
+void selectAndExecVector(const Config& config, Args&&... args) {
     if (std::find(config.vectors.begin(), config.vectors.end(),
-                  AlignedUniquePtr<T>::name())
-        != config.vectors.end()) {
-        exec<T, Generator, Algo, AlignedUniquePtr>(config,index);
+                  AlignedUniquePtr<T>::name()) != config.vectors.end()) {
+        exec<T, Generator, Algo, AlignedUniquePtr>(config, std::forward<Args>(args)...);
     }
+
     if (std::find(config.vectors.begin(), config.vectors.end(),
-                  Numa::AlignedArray<T>::name())
-        != config.vectors.end()) {
-        exec<T, Generator, Algo, Numa::AlignedArray>(config,index);
+                  Numa::AlignedArray<T>::name()) != config.vectors.end()) {
+        exec<T, Generator, Algo, Numa::AlignedArray>(config, std::forward<Args>(args)...);
     }
 }
 
 
-template <class T, class Generator, class Algorithms>
-void selectAndExecAlgo(const Config& config) {
+template <class T, class Generator, class Algorithms, typename... Args>
+void selectAndExecAlgo(const Config& config, Args&&... args) {
     using Algorithm = typename Algorithms::SequenceClass;
-    for (const auto algo : config.algos) {
+
+    for (const auto& algo : config.algos) {
         if (!Algorithm::name().compare(algo)) {
             if constexpr (Algorithm::template accepts<T>()) {
-                selectAndExecVector<T, Generator, Algorithm>(config);
+                selectAndExecVector<T, Generator, Algorithm>(config, std::forward<Args>(args)...);
             } else {
                 std::cout << "RESULT"
                           << "\talgo=" << Algorithm::name() << "\tconfigwarning=1"
@@ -366,30 +331,11 @@ void selectAndExecAlgo(const Config& config) {
     }
 
     if constexpr (!Algorithms::isLast()) {
-        selectAndExecAlgo<T, Generator, typename Algorithms::SubSequence>(config);
+        selectAndExecAlgo<T, Generator, typename Algorithms::SubSequence>(
+            config, std::forward<Args>(args)...);
     }
 }
 
-// overload for the generator with index
-template <class T, class Generator, class Algorithms>
-void selectAndExecAlgo(const Config& config, size_t index) {
-    using Algorithm = typename Algorithms::SequenceClass;
-    for (const auto algo : config.algos) {
-        if (!Algorithm::name().compare(algo)) {
-            if constexpr (Algorithm::template accepts<T>()) {
-                selectAndExecVector<T, Generator, Algorithm>(config,index);
-            } else {
-                std::cout << "RESULT"
-                          << "\talgo=" << Algorithm::name() << "\tconfigwarning=1"
-                          << "\tdatatype=" << Datatype<T>::name() << std::endl;
-            }
-        }
-    }
-
-    if constexpr (!Algorithms::isLast()) {
-        selectAndExecAlgo<T, Generator, typename Algorithms::SubSequence>(config,index);
-    }
-}
 
 template <class T, class Algorithms, class Generators>
 void selectAndExecGenerators(const Config &config)
@@ -460,10 +406,15 @@ void selectAndExecGenerators(const Config &config)
         }
     }
 
+    // entry point
     template <class Algorithms>
     void benchmark(const Config &config)
     {
+#ifdef ENABLE_PAPI_PROFILING
+    initialize_papi_globally_once(); // Call at the very beginning
+#endif
         selectAndExecDatatype<Algorithms, Datatypes>(config);
+    
     }
 
     inline Config readParameters(int argc, char *argv[],
