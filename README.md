@@ -7,9 +7,9 @@ Here's the abstract:
 ## TODO
 
 - [ ] Add Generator
-    - [X] Implement graph generator (finished at 5/5/2025)
+    - [X] Implement graph generator (completed on 5/5/2025)
     - [ ] Implement database generator
-- [ ] Add a way of detecting memory usage
+- [X] Add a way of detecting memory usage (completed on 5/7/2025)
 - [ ] Extend the `run.sh`
 - [ ] Add interface for faster module selection
 
