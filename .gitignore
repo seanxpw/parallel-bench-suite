@@ -11,6 +11,8 @@ benchmark/running_times/b1*.txt
 *.aux
 *.out
 *.pdf
+*.pyc
+
 run
 run/run.sh
 .vscode/settings.json
