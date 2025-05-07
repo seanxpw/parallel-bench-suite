@@ -32,6 +32,7 @@
 #include <random>
 #include <vector>
 #include <functional>
+#include <optional>
 
 #include <numa_array.hpp>
 #include <tclap/CmdLine.h>
@@ -48,6 +49,12 @@
 #include "vector_types.hpp"
 
 constexpr uint32_t ALIGNMENT = 0x100;
+
+#ifdef DISABLE_PERF_INTERFERENCE_CHECKS
+constexpr bool g_enable_benchmark_checker = false;
+#else
+constexpr bool g_enable_benchmark_checker = true; 
+#endif
 
 template <class T>
 std::pair<size_t, size_t> logSizes(const Config& config) {
@@ -74,6 +81,30 @@ constexpr int numRuns(const Config& config, size_t size, bool parallel_algo) {
 
 
 namespace detail { // Encapsulate helper
+
+    /**
+     * @brief Invokes the specified sorting algorithm.
+     * @tparam T The type of elements to sort.
+     * @tparam Vector The type of vector container.
+     * @tparam Algo The sorting algorithm provider.
+     * @tparam ConfigType The type of the configuration object.
+     * @param data_begin Pointer to the beginning of the data to sort.
+     * @param data_end Pointer to the end of the data to sort.
+     * @param config The benchmark configuration, used to get num_threads.
+     * @return A pair or struct containing preprocessing time and sorting time,
+     * as returned by Algo::sort.
+     */
+    template <class T, template <class T1> class Vector, class Algo, typename ConfigType>
+    auto execute_sorting_step(
+        T* data_begin,
+        T* data_end,
+        const ConfigType& config)
+    // The return type is deduced from Algo::sort
+    // For C++11/14, you might need: -> decltype(Algo::template sort<T, Vector>(data_begin, data_end, config.num_threads))
+    {
+        // Algo::sort modifies the data in place.
+        return Algo::template sort<T, Vector>(data_begin, data_end, config.num_threads);
+    }
 
     template <class T, template <class T1> class Vector, class Algo, typename GenOperation, typename GenNameOperation>
     void run_experiment_iteration(
@@ -105,23 +136,40 @@ namespace detail { // Encapsulate helper
         auto finish_gen = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> elapsed_gen = finish_gen - start_gen;
     
-        auto start_checker = std::chrono::high_resolution_clock::now();
-        ParallelChecker<T> checker;
-        checker.add_pre(current_data_ptr, current_data_end_ptr);
-        auto finish_checker = std::chrono::high_resolution_clock::now();
-        double time_checker = std::chrono::duration<double, std::milli>(
-                                  finish_checker - start_checker)
-                                  .count();
+        // --- Benchmark Checker Logic (Compile-time conditional) ---
+        double time_checker_ms = 0.0; // Accumulates checker timing, defaults to 0 if disabled.
+        std::optional<ParallelChecker<T>> checker_instance_opt; // Optional checker instance.
+
+        if constexpr (g_enable_benchmark_checker) {
+            // Only instantiate and use the checker if enabled at compile time.
+            checker_instance_opt.emplace(); // Construct ParallelChecker instance.
+
+            auto start_checker_timing = std::chrono::high_resolution_clock::now();
+            checker_instance_opt->add_pre(current_data_ptr, current_data_end_ptr); // Check before sorting.
+            auto finish_checker_timing = std::chrono::high_resolution_clock::now();
+            time_checker_ms += std::chrono::duration<double, std::milli>(
+                                   finish_checker_timing - start_checker_timing)
+                                   .count();
+        }
+        // --- End Benchmark Checker Logic (Pre-sort) ---
     
         // Algo::sort modifies the data in place.
-        const auto [preprocessing, sorting] = Algo::template sort<T, Vector>(
-            current_data_ptr, current_data_end_ptr, config.num_threads);
+        const auto [preprocessing, sorting] = execute_sorting_step<T, Vector, Algo>(
+            current_data_ptr, current_data_end_ptr, config);
     
-        start_checker = std::chrono::high_resolution_clock::now();
-        checker.add_post(current_data_ptr, current_data_end_ptr, Datatype<T>::getComparator());
-        finish_checker = std::chrono::high_resolution_clock::now();
-        time_checker += std::chrono::duration<double, std::milli>(finish_checker - start_checker)
-                            .count();
+        // --- Benchmark Checker Logic (Compile-time conditional) ---
+        if constexpr (g_enable_benchmark_checker) {
+            // Ensure checker_instance_opt is valid if checker is enabled.
+            // This assertion is technically redundant due to if constexpr, but can be a sanity check.
+            // assert(checker_instance_opt.has_value());
+
+            auto start_checker_timing = std::chrono::high_resolution_clock::now();
+            checker_instance_opt->add_post(current_data_ptr, current_data_end_ptr, Datatype<T>::getComparator()); // Check after sorting.
+            auto finish_checker_timing = std::chrono::high_resolution_clock::now();
+            time_checker_ms += std::chrono::duration<double, std::milli>(finish_checker_timing - start_checker_timing)
+                                   .count();
+        }
+        // --- End Benchmark Checker Logic (Post-sort) ---
     
         std::cout << "RESULT"
                   << "\tmachine=" << config.machine
@@ -134,14 +182,25 @@ namespace detail { // Encapsulate helper
                   << "\tcopyback=" << copyback
                   << "\tsize=" << current_data_size
                   << "\trun=" << run_iteration_id
-                  << "\tbenchmarkconfigerror=0"
-                  << "\tcheckermilli=" << time_checker
-                  << "\tgeneratormilli=" << elapsed_gen.count()
+                  << "\tbenchmarkconfigerror=0";
+
+        // Conditionally output checker-related metrics.
+        if constexpr (g_enable_benchmark_checker) {
+            // assert(checker_instance_opt.has_value()); // Redundant, but for clarity.
+            std::cout << "\tcheckermilli=" << time_checker_ms
+                      << "\tsortedsequence="
+                      << checker_instance_opt->is_likely_sorted(Datatype<T>::getComparator())
+                      << "\tpermutation=" << checker_instance_opt->is_likely_permutated();
+        } else {
+            // Output placeholders or omit if checker is disabled.
+            std::cout << "\tcheckermilli=0.0" // Indicates checker was disabled or took no time.
+                      << "\tsortedsequence=DISABLED"
+                      << "\tpermutation=DISABLED";
+        }
+        
+        std::cout << "\tgeneratormilli=" << elapsed_gen.count()
                   << "\tpreprocmilli=" << preprocessing
                   << "\tmilli=" << sorting
-                  << "\tsortedsequence="
-                  << checker.is_likely_sorted(Datatype<T>::getComparator())
-                  << "\tpermutation=" << checker.is_likely_permutated()
                   << config.info;
     
     #ifdef IPS4O_TIMER

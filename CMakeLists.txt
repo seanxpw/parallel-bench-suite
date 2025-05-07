@@ -23,6 +23,17 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG -g -march=native")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -march=native")
 # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -static-libasan -fsanitize=address")
 
+# checker
+option(BENCHMARK_DISABLE_CHECKS "Disable benchmark checkers for performance analysis" ON)
+
+if(BENCHMARK_DISABLE_CHECKS)
+    message(STATUS "Benchmark checkers are DISABLED for performance analysis (globally).")
+    add_compile_definitions(DISABLE_PERF_INTERFERENCE_CHECKS) 
+else()
+    message(STATUS "Benchmark checkers are ENABLED (globally).")
+endif()
+
+
 set(IPPRADIXSORT "Disable" CACHE STRING "Build type. Default is Disable")
 set_property(CACHE IPPRADIXSORT PROPERTY STRINGS Disable Enable)
 if ("${IPPRADIXSORT}" STREQUAL "Enable")

@@ -15,6 +15,7 @@
 #include <cstddef>     // For size_t
 #include <random>      // For std::random_device, std::mt19937
 #include <iostream>    // For std::cout in dummy functions
+#include <optional> 
 
 #include <fstream>
 #include <vector>
@@ -33,6 +34,7 @@
 #include "../sequence.hpp"
 #include "simple_alias.hpp"
 #include "zipf_distribution.hpp"
+
 
 
 
