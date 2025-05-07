@@ -17,10 +17,10 @@ set(CMAKE_PREFIX_PATH "$ENV{HOME}/oneTBB/install" ${CMAKE_PREFIX_PATH})
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON) # C++20
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}  -DNDEBUG -march=native -include cstdint") #-include cstdint is for tlx
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}  -march=native -include cstdint")
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG -march=native")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -march=native")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}  -DNDEBUG -g -march=native -include cstdint") #-include cstdint is for tlx
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}  -march=native -g -include cstdint")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG -g -march=native")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -march=native")
 # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -static-libasan -fsanitize=address")
 
 set(IPPRADIXSORT "Disable" CACHE STRING "Build type. Default is Disable")

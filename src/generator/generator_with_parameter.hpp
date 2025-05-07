@@ -417,13 +417,13 @@ private:
             return; // Or throw
 
         const std::string file_path = param_list[param_index].filename;
-        printf("GenGraph (Static Cache): Loading data for index %zu from %s...\n", param_index, file_path.c_str());
+        // printf("GenGraph (Static Cache): Loading data for index %zu from %s...\n", param_index, file_path.c_str());
         try
         {
             // Load data and store it in the correct slot of the static cache
             // cache[param_index] = load_graph_data(file_path);
             cache[param_index] = load_graph_data_from_chars(file_path, param_list[param_index].size);
-            printf("GenGraph (Static Cache): Loaded %zu elements for index %zu.\n", cache[param_index].size(), param_index);
+            // printf("GenGraph (Static Cache): Loaded %zu elements for index %zu.\n", cache[param_index].size(), param_index);
 
             // Optional: Verify loaded size against definition
             if (param_list[param_index].size != 0 && param_list[param_index].size != cache[param_index].size())

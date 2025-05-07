@@ -31,6 +31,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <functional>
 
 #include <numa_array.hpp>
 #include <tclap/CmdLine.h>
@@ -71,234 +72,79 @@ constexpr int numRuns(const Config& config, size_t size, bool parallel_algo) {
         return 2;
 }
 
-template <class T, class Generator, class Algo, template <class T1> class Vector>
-void exec(const Config& config) {
-    // std::vector<T> v;
-    const auto [min_log_size, max_log_size] = logSizes<T>(config);
 
-    Generator gen;
-    for (size_t size = (1ul << min_log_size); size <= (1ul << max_log_size); size *= 2) {
-        // v.resize(size);
-        Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
-        assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
-        for (int run = 0; run != numRuns<T>(config, size, Algo::isParallel()); ++run) {
-            auto start_gen = std::chrono::high_resolution_clock::now();
-            gen(v.get(), v.get() + size);
-            const auto copyback = !Algo::isParallel() || config.copyback;
-            if (copyback) {
-                // Copy data into a new array by the main thread as the
-                // parallel generators may create pages at all numa nodes.
-                Vector<T> v1(size, std::max<size_t>(16, ALIGNMENT));
-                std::copy(v.get(), v.get() + size, v1.get());
-                v = std::move(v1);
-            }
-            auto finish_gen = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double, std::milli> elapsed_gen =
-                    finish_gen - start_gen;
+namespace detail { // Encapsulate helper
 
-            auto start_checker = std::chrono::high_resolution_clock::now();
-            ParallelChecker<T> checker;
-            checker.add_pre(v.get(), v.get() + size);
-            auto finish_checker = std::chrono::high_resolution_clock::now();
-            double time_checker = std::chrono::duration<double, std::milli>(
-                                          finish_checker - start_checker)
-                                          .count();
-
-            const auto [preprocessing, sorting] = Algo::template sort<T, Vector>(
-                    v.get(), v.get() + size, config.num_threads);
-
-            start_checker = std::chrono::high_resolution_clock::now();
-            checker.add_post(v.get(), v.get() + size, Datatype<T>::getComparator());
-            finish_checker = std::chrono::high_resolution_clock::now();
-            time_checker += std::chrono::duration<double, std::milli>(finish_checker
-                                                                      - start_checker)
-                                    .count();
-
-            std::cout << "RESULT"
-                      << "\tmachine=" << config.machine << "\tgen=" << Generator::name()
-                      << "\tdatatype=" << Datatype<T>::name() << "\talgo=" << Algo::name()
-                      << "\tparallel=" << Algo::isParallel()
-                      << "\tthreads=" << config.num_threads
-                      << "\tvector=" << Vector<T>::name() << "\tcopyback=" << copyback
-                      << "\tsize=" << size << "\trun=" << run
-                      << "\tbenchmarkconfigerror=0"
-                      << "\tcheckermilli=" << time_checker
-                      << "\tgeneratormilli=" << elapsed_gen.count()
-                      << "\tpreprocmilli=" << preprocessing << "\tmilli=" << sorting
-                      << "\tsortedsequence="
-                      << checker.is_likely_sorted(Datatype<T>::getComparator())
-                      << "\tpermutation=" << checker.is_likely_permutated()
-                      << config.info;
-
-#ifdef IPS4O_TIMER
-            std::cout << "\tbasecase=" << g_base_case.getTime()
-                      << "\tsampling=" << g_sampling.getTime()
-                      << "\tclassificationphase=" << g_classification.getTime()
-                      << "\tpermutationphase=" << g_permutation.getTime()
-                      << "\tcleanup=" << g_cleanup.getTime()
-                      << "\toverhead=" << g_overhead.getTime()
-                      << "\temptyblock=" << g_empty_block.getTime()
-                      << "\ttotal=" << g_total.getTime();
-            g_base_case.reset();
-            g_sampling.reset();
-            g_classification.reset();
-            g_permutation.reset();
-            g_cleanup.reset();
-            g_overhead.reset();
-            g_empty_block.reset();
-            g_total.reset();
-#endif
-
-            std::cout << std::endl;
-        }
-    }
-}
-
-//  this is an overload to receive on more parameter as index for the generator
-template <class T, class Generator, class Algo, template <class T1> class Vector>
-std::enable_if_t<!std::is_base_of_v<RealWorldData, Generator>, void>
-exec(const Config& config, const size_t index) {
-    // std::vector<T> v;
-    const auto [min_log_size, max_log_size] = logSizes<T>(config);
-    Generator gen;
-    for (size_t size = (1ul << min_log_size); size <= (1ul << max_log_size); size *= 2) {
-        Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
-        assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
-        for (int run = 0; run != numRuns<T>(config, size, Algo::isParallel()); ++run) {
-            auto start_gen = std::chrono::high_resolution_clock::now();
-            gen(v.get(), v.get() + size, index);
-            const auto copyback = !Algo::isParallel() || config.copyback;
-            if (copyback) {
-                // Copy data into a new array by the main thread as the
-                // parallel generators may create pages at all numa nodes.
-                Vector<T> v1(size, std::max<size_t>(16, ALIGNMENT));
-                std::copy(v.get(), v.get() + size, v1.get());
-                v = std::move(v1);
-            }
-            auto finish_gen = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double, std::milli> elapsed_gen =
-                    finish_gen - start_gen;
-
-            auto start_checker = std::chrono::high_resolution_clock::now();
-            ParallelChecker<T> checker;
-            checker.add_pre(v.get(), v.get() + size);
-            auto finish_checker = std::chrono::high_resolution_clock::now();
-            double time_checker = std::chrono::duration<double, std::milli>(
-                                          finish_checker - start_checker)
-                                          .count();
-
-            const auto [preprocessing, sorting] = Algo::template sort<T, Vector>(
-                    v.get(), v.get() + size, config.num_threads);
-
-            start_checker = std::chrono::high_resolution_clock::now();
-            checker.add_post(v.get(), v.get() + size, Datatype<T>::getComparator());
-            finish_checker = std::chrono::high_resolution_clock::now();
-            time_checker += std::chrono::duration<double, std::milli>(finish_checker
-                                                                      - start_checker)
-                                    .count();
-
-            std::cout << "RESULT"
-                      << "\tmachine=" << config.machine << "\tgen=" << Generator::name(index)
-                      << "\tdatatype=" << Datatype<T>::name() << "\talgo=" << Algo::name()
-                      << "\tparallel=" << Algo::isParallel()
-                      << "\tthreads=" << config.num_threads
-                      << "\tvector=" << Vector<T>::name() << "\tcopyback=" << copyback
-                      << "\tsize=" << size << "\trun=" << run
-                      << "\tbenchmarkconfigerror=0"
-                      << "\tcheckermilli=" << time_checker
-                      << "\tgeneratormilli=" << elapsed_gen.count()
-                      << "\tpreprocmilli=" << preprocessing << "\tmilli=" << sorting
-                      << "\tsortedsequence="
-                      << checker.is_likely_sorted(Datatype<T>::getComparator())
-                      << "\tpermutation=" << checker.is_likely_permutated()
-                      << config.info;
-
-#ifdef IPS4O_TIMER
-            std::cout << "\tbasecase=" << g_base_case.getTime()
-                      << "\tsampling=" << g_sampling.getTime()
-                      << "\tclassificationphase=" << g_classification.getTime()
-                      << "\tpermutationphase=" << g_permutation.getTime()
-                      << "\tcleanup=" << g_cleanup.getTime()
-                      << "\toverhead=" << g_overhead.getTime()
-                      << "\temptyblock=" << g_empty_block.getTime()
-                      << "\ttotal=" << g_total.getTime();
-            g_base_case.reset();
-            g_sampling.reset();
-            g_classification.reset();
-            g_permutation.reset();
-            g_cleanup.reset();
-            g_overhead.reset();
-            g_empty_block.reset();
-            g_total.reset();
-#endif
-
-            std::cout << std::endl;
-        }
-    }// end size for loop
-}
-
-// real world
-template <class T, class Generator, class Algo, template <class T1> class Vector>
-std::enable_if_t<std::is_base_of_v<RealWorldData, Generator>,void>
-exec(const Config &config, const size_t index)
-{
-    printf("RealWorld exec\n");
-    Generator gen;
-    size_t size = static_cast<const RealWorldData &>(gen).getSize(index);
-    printf("size is %llu\n",size);
-    Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
-    assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
-    for (int run = 0; run != numRuns<T>(config, size, Algo::isParallel()); ++run)
-    {
+    template <class T, template <class T1> class Vector, class Algo, typename GenOperation, typename GenNameOperation>
+    void run_experiment_iteration(
+        Vector<T>& v_container, // Pass by reference to handle potential move in copyback
+        const size_t current_data_size,
+        const Config& config,
+        int run_iteration_id,
+        GenOperation&& generate_data_fn,     // Lambda for gen(v.get(), v.get() + size, [index])
+        GenNameOperation&& get_generator_name_fn // Lambda for Generator::name([index])
+    ) {
+        T* current_data_ptr = v_container.get();
+        T* current_data_end_ptr = v_container.get() + current_data_size;
+    
         auto start_gen = std::chrono::high_resolution_clock::now();
-        gen(v.get(), v.get() + size, index);// still have to regenerate (refresh) very time.
+        generate_data_fn(current_data_ptr, current_data_end_ptr);
         const auto copyback = !Algo::isParallel() || config.copyback;
-        if (copyback)
-        {
+    
+        if (copyback) {
             // Copy data into a new array by the main thread as the
             // parallel generators may create pages at all numa nodes.
-            Vector<T> v1(size, std::max<size_t>(16, ALIGNMENT));
-            std::copy(v.get(), v.get() + size, v1.get());
-            v = std::move(v1);
+            Vector<T> v1(current_data_size, std::max<size_t>(16, ALIGNMENT));
+            // Ensure the source for copy is the data just generated
+            std::copy(current_data_ptr, current_data_end_ptr, v1.get());
+            v_container = std::move(v1); // v_container in the caller is now the new vector
+            // Update pointers to reflect the new buffer in v_container
+            current_data_ptr = v_container.get();
+            current_data_end_ptr = v_container.get() + current_data_size;
         }
         auto finish_gen = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::milli> elapsed_gen =
-            finish_gen - start_gen;
-
+        std::chrono::duration<double, std::milli> elapsed_gen = finish_gen - start_gen;
+    
         auto start_checker = std::chrono::high_resolution_clock::now();
         ParallelChecker<T> checker;
-        checker.add_pre(v.get(), v.get() + size);
+        checker.add_pre(current_data_ptr, current_data_end_ptr);
         auto finish_checker = std::chrono::high_resolution_clock::now();
         double time_checker = std::chrono::duration<double, std::milli>(
                                   finish_checker - start_checker)
                                   .count();
-
+    
+        // Algo::sort modifies the data in place.
         const auto [preprocessing, sorting] = Algo::template sort<T, Vector>(
-            v.get(), v.get() + size, config.num_threads);
-
+            current_data_ptr, current_data_end_ptr, config.num_threads);
+    
         start_checker = std::chrono::high_resolution_clock::now();
-        checker.add_post(v.get(), v.get() + size, Datatype<T>::getComparator());
+        checker.add_post(current_data_ptr, current_data_end_ptr, Datatype<T>::getComparator());
         finish_checker = std::chrono::high_resolution_clock::now();
         time_checker += std::chrono::duration<double, std::milli>(finish_checker - start_checker)
                             .count();
-
+    
         std::cout << "RESULT"
-                  << "\tmachine=" << config.machine << "\tgen=" << Generator::name(index)
-                  << "\tdatatype=" << Datatype<T>::name() << "\talgo=" << Algo::name()
+                  << "\tmachine=" << config.machine
+                  << "\tgen=" << get_generator_name_fn() // Use the lambda to get name
+                  << "\tdatatype=" << Datatype<T>::name()
+                  << "\talgo=" << Algo::name()
                   << "\tparallel=" << Algo::isParallel()
                   << "\tthreads=" << config.num_threads
-                  << "\tvector=" << Vector<T>::name() << "\tcopyback=" << copyback
-                  << "\tsize=" << size << "\trun=" << run
+                  << "\tvector=" << Vector<T>::name()
+                  << "\tcopyback=" << copyback
+                  << "\tsize=" << current_data_size
+                  << "\trun=" << run_iteration_id
                   << "\tbenchmarkconfigerror=0"
                   << "\tcheckermilli=" << time_checker
                   << "\tgeneratormilli=" << elapsed_gen.count()
-                  << "\tpreprocmilli=" << preprocessing << "\tmilli=" << sorting
+                  << "\tpreprocmilli=" << preprocessing
+                  << "\tmilli=" << sorting
                   << "\tsortedsequence="
                   << checker.is_likely_sorted(Datatype<T>::getComparator())
                   << "\tpermutation=" << checker.is_likely_permutated()
                   << config.info;
-
-#ifdef IPS4O_TIMER
+    
+    #ifdef IPS4O_TIMER
         std::cout << "\tbasecase=" << g_base_case.getTime()
                   << "\tsampling=" << g_sampling.getTime()
                   << "\tclassificationphase=" << g_classification.getTime()
@@ -315,9 +161,103 @@ exec(const Config &config, const size_t index)
         g_overhead.reset();
         g_empty_block.reset();
         g_total.reset();
-#endif
-
+    #endif
+    
         std::cout << std::endl;
+    }
+    
+} // namespace detail
+
+template <class T, class Generator, class Algo, template <class T1> class Vector>
+void exec(const Config &config)
+{
+    const auto [min_log_size, max_log_size] = logSizes<T>(config);
+
+    Generator gen_instance; // Create generator instance
+
+    for (size_t size = (1ul << min_log_size); size <= (1ul << max_log_size); size *= 2)
+    {
+        Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
+        assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
+
+        for (int run = 0; run != numRuns<T>(config, size, Algo::isParallel()); ++run)
+        {
+            // Lambda to call generator without index
+            auto generate_lambda = [&](T *begin, T *end)
+            {
+                gen_instance(begin, end);
+            };
+            // Lambda to get generator name without index
+            auto name_lambda = [&]()
+            {
+                return Generator::name();
+            };
+
+            detail::run_experiment_iteration<T, Vector, Algo>(
+                v, size, config, run,
+                generate_lambda, name_lambda);
+        }
+    }
+}
+
+//  this is an overload to receive on more parameter as index for the generator
+template <class T, class Generator, class Algo, template <class T1> class Vector>
+std::enable_if_t<!std::is_base_of_v<RealWorldData, Generator>, void>
+exec(const Config& config, const size_t index) {
+    const auto [min_log_size, max_log_size] = logSizes<T>(config);
+
+    Generator gen_instance; // Create generator instance
+
+    for (size_t size = (1ul << min_log_size); size <= (1ul << max_log_size); size *= 2) {
+        Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
+        assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
+
+        for (int run = 0; run != numRuns<T>(config, size, Algo::isParallel()); ++run) {
+            // Lambda to call generator with index
+            auto generate_lambda = [&](T* begin, T* end) {
+                gen_instance(begin, end, index);
+            };
+            // Lambda to get generator name with index
+            auto name_lambda = [&]() {
+                return Generator::name(index);
+            };
+
+            detail::run_experiment_iteration<T, Vector, Algo>(
+                v, size, config, run,
+                generate_lambda, name_lambda
+            );
+        }
+    }
+}
+
+
+// real world, ignore size
+template <class T, class Generator, class Algo, template <class T1> class Vector>
+std::enable_if_t<std::is_base_of_v<RealWorldData, Generator>, void>
+exec(const Config& config, const size_t index) {
+    Generator gen_instance; // Create generator instance
+    // Size is determined once using the index for RealWorldData
+    size_t size = static_cast<const RealWorldData&>(gen_instance).getSize(index);
+    // Original code had printf, matching that. Consider std::cout for consistency if preferred.
+    // printf("size is %llu\n", static_cast<unsigned long long>(size));
+
+    Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
+    assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
+
+    for (int run = 0; run != numRuns<T>(config, size, Algo::isParallel()); ++run) {
+        // Lambda to call generator with index
+        auto generate_lambda = [&](T* begin, T* end) {
+            gen_instance(begin, end, index); // Regenerate data for each run
+        };
+        // Lambda to get generator name with index
+        auto name_lambda = [&]() {
+            return Generator::name(index);
+        };
+
+        detail::run_experiment_iteration<T, Vector, Algo>(
+            v, size, config, run,
+            generate_lambda, name_lambda
+        );
     }
 }
 
