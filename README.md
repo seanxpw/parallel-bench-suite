@@ -1,18 +1,54 @@
 # Parallel algorithm Benchmark Suite
+## Framework Introduction
 
-This is the benchmark suite of IPS⁴o presented in the paper [In-place Parallel Super Scalar Samplesort (IPS⁴o)](https://arxiv.org/abs/1705.02257) (todo update link).
-The benchmark suite compares our algorithms IPS⁴o [(GitHub link)](https://github.com/ips4o/ips4o), In-place Parallel Super Scalar Radix Sort (IPS²Ra) [(GitHub link)](https://github.com/ips4o/ips2ra), and Parallel Super Scalar Samplesort (PS⁴o) [(GitHub link)](https://github.com/ips4o/ps4o), to various sequential and parallel radix as well as comparison based sorting algorithms.
-Here's the abstract:
+The framework consists of three main parts:
+
+1. **Hooking your algorithm**  
+   You need to integrate your algorithm implementation using the provided interfaces (see `src/algorithm` and `src/benchmark`). Each algorithm will be compiled into an independent binary executable.
+
+2. **Custom data generators**  
+   To test on your own data distribution, you can add a new generator in `src/generator/generator.hpp`.
+
+3. **Compilation and execution**  
+   The compiler will compile all listed combinations of generators and data types/structures into your algorithm binary. To invoke a specific combination, you need to pass the corresponding parameters via the command line. Refer to `run_scripts/run_perf.sh` for an example. Parameters include data size, number of runs, generator name, data type, etc.
+
+## How I Ran Performance Tests
+
+**Basic settings** (as configured in `run_scripts/run_perf.sh`):  
+The framework fixes the total memory size rather than the number of elements. The memory size is set to 2^32 = 4,294,967,296 bytes. As a result, the number of elements varies depending on the data type.
+
+I tested the following data types:  
+DATATYPES=(uint32 uint64 pair)  
+- `pair` refers to a structure of (uint64, uint64)
+
+I tested with the following data generators:  
+GENERATORS=(random zipf exponential almostsorted)
+
+Performance tests were run using:  
+`perf stat -e ${AVAILABLE_GROUP_EVENTS_STR} -- bash -c "numactl -i all ${ALGO_EXECUTABLE} [command parameters]"`
+
+Each binary performs sorting 5 times per run. The `perf stat` results include the total statistics for all 5 rounds.  
+Additionally, I ran a "do-nothing" sort (which performs everything except sorting, mainly to measure generator overhead). By subtracting its statistics, we can isolate the true cost of the sorting step.
+
+`/analysis_scripts/analyze_main.py` will analysis the generated `perf` result, visualize them and it also generates a `feature_importance_wall_time.png` for reference.
+
+**Summary**:
+- The charts include performance statistics for 5 sorting rounds.
+- Wall time is the average sorting time, excluding the first run (to avoid cold-start effects).
+- To ensure accuracy, I ran each parameter setting 4 times, collecting different `perf` metrics each time.
+
 
 ## TODO
 
 - [ ] Add Generator
     - [X] Implement graph generator (completed on 5/5/2025)
     - [ ] Implement database generator
-- [X] Add a way of detecting memory usage (completed on 5/7/2025)
+- [] Add a way of detecting memory usage
+- [X]  Add `perf` support (completed on 5/7/2025)
 - [ ] Extend the `run.sh`
 - [ ] Add interface for faster module selection
-
+- [ ] Ran sequential 
+- [ ] PAPI if possible
 
 (todo update)
 > We present a sorting algorithm that works in-place, executes in parallel, is

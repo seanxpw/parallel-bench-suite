@@ -48,6 +48,10 @@ METRICS_TO_PLOT = {
     "L1 ICache Load Misses": {"lower_is_better": True, "unit": "Count"},
 }
 
+TOTAL_THREAD_GRAPH = 64
+TOTAL_RUNS_GRAPH = 5
+TOTAL_MEM_GRAPH = 2**32
+
 def generate_comparison_plots(all_algo_metrics, config_key, output_dir, baseline_algo_name):
     """
     为指定配置生成包含多个子图的对比条形图。
@@ -155,7 +159,7 @@ def generate_comparison_plots(all_algo_metrics, config_key, output_dir, baseline
     for i in range(plot_idx, len(axes)):
         axes[i].set_visible(False)
 
-    fig.suptitle(f'Algorithm Comparison: Generator={generator}, DataType={data_type}', fontsize=14, y=1.0)
+    fig.suptitle(f'Algorithm Comparison: Generator={generator}, DataType={data_type}, Threads={TOTAL_THREAD_GRAPH}, RoundsCounted={TOTAL_RUNS_GRAPH} InputMemorySize={TOTAL_MEM_GRAPH} Bytes ', fontsize=14, y=1.0)
     plt.tight_layout(pad=1.5, rect=[0, 0.03, 1, 0.98])
 
     output_filename = os.path.join(output_dir, f"plot_summary_{generator}_{data_type}.png")
