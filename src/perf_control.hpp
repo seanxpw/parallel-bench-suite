@@ -58,13 +58,29 @@ namespace PerfControl {
 // (DEFAULT_CTL_PIPE_PATH and DEFAULT_ACK_PIPE_PATH are defined in the header or here)
 
 bool init(const char* ctl_pipe_path, const char* ack_pipe_path) {
+        // 检查环境变量，决定是否启用 FIFO 控制
+    const char* perf_control_env = std::getenv("ENABLE_PERF_CONTROL");
+    bool enable_fifo_control = false;
+    if (perf_control_env && strcmp(perf_control_env, "true") == 0) {
+        enable_fifo_control = true;
+    }
+
+    if (!enable_fifo_control) {
+        std::cout << "[PerfControl] ENABLE_PERF_CONTROL not set to 'true'. Perf FIFO control is DISABLED." << std::endl;
+        g_perf_ctl_fd = -1;     // 确保 FD 无效
+        g_perf_ctl_ack_fd = -1;
+        return true; // "初始化成功"，但 FIFO 功能是关闭的
+    }
+
+    // --- 如果启用了 FIFO 控制，则执行原有的 FIFO 打开逻辑 ---
     if (g_perf_ctl_fd != -1 || g_perf_ctl_ack_fd != -1) {
         std::cout << "[PerfControl] Warning: Already initialized. Call cleanup() first if re-initializing." << std::endl;
         return (g_perf_ctl_fd != -1 && g_perf_ctl_ack_fd != -1);
     }
 
-    std::cout << "[PerfControl] Initializing by opening FIFOs: CTL='" << ctl_pipe_path
-              << "', ACK='" << ack_pipe_path << "'" << std::endl;
+    std::cout << "[PerfControl] ENABLE_PERF_CONTROL=true. Initializing by opening FIFOs: CTL='"
+              << ctl_pipe_path << "', ACK='" << ack_pipe_path << "'" << std::endl;
+
 
     // Open control pipe for writing.
     // This call might block until 'perf' (the reader) opens its end of the pipe.
