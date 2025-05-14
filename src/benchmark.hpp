@@ -24,7 +24,8 @@
 #include "timer.hpp"
 #include "typename.hpp"
 #include "vector_types.hpp"
-#include "papi_settings.hpp"
+// #include "papi_settings.hpp"
+#include "perf_control.hpp" // Include the header for perf control
 
 constexpr uint32_t ALIGNMENT = 0x100;
 
@@ -131,11 +132,25 @@ namespace detail { // Encapsulate helper
                                    .count();
         }
         // --- End Benchmark Checker Logic (Pre-sort) ---
-    
+
+        if (g_perf_ctl_fd != -1)
+        { // 或者检查 perf_initialized 状态
+            if (!PerfControl::start_profiling("my_target_function_call"))
+            {
+                std::cerr << "[PerfControl] Failed to start profiling." << std::endl;
+            }
+        }
         // Algo::sort modifies the data in place.
         const auto [preprocessing, sorting] = execute_sorting_step<T, Vector, Algo>(
             current_data_ptr, current_data_end_ptr, config);
-    
+
+        if (g_perf_ctl_fd != -1)
+        {
+            if (!PerfControl::stop_profiling("my_target_function_call"))
+            {
+                std::cerr << "[PerfControl] Failed to stop profiling." << std::endl;
+            }
+        }
         // --- Benchmark Checker Logic (Compile-time conditional) ---
         if constexpr (g_enable_benchmark_checker) {
             // Ensure checker_instance_opt is valid if checker is enabled.
@@ -413,8 +428,16 @@ void selectAndExecGenerators(const Config &config)
 #ifdef ENABLE_PAPI_PROFILING
     initialize_papi_globally_once(); // Call at the very beginning
 #endif
+ bool perf_initialized = PerfControl::init(); // 使用默认路径
+
+        if (!perf_initialized) {
+            std::cerr << "Failed to initialize PerfControl. Proceeding without perf signaling." << std::endl;
+        }
         selectAndExecDatatype<Algorithms, Datatypes>(config);
     
+         if (perf_initialized) {
+        PerfControl::cleanup();
+    }
     }
 
     inline Config readParameters(int argc, char *argv[],
