@@ -18,9 +18,9 @@ The observations indicate that sorting algorithms related to ParlayLib tend to i
 
 ![Comparison of Page Faults and dTLB Misses](images/comparison_page_faults_dTLB.png)
 
-Then I ran perf record and try to find what funtion produces the TLB miss ans page faults Dovetail PLIS PLSS. I can only get reasonable result for Dovetail and PLIS fornow, here's the findings.
+Then I ran perf record and tried to find what function produces the TLB miss and page faults Dovetail PLIS PLSS. I can only get reasonable results for Dovetail and PLIS fornow, here's the findings.
 
-The dTLB and page faults for Dovetail and PLIS both lies in the same ParlayLib internal file called `counting_sort.h`.
+The dTLB and page faults for Dovetail and PLIS both lie in the same ParlayLib internal file called counting_sort.h.
 
 ---
 ### **Page Faults Analysis**
