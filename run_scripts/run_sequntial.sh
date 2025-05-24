@@ -8,7 +8,7 @@
 BUILD_DIR="$HOME/parallel-bench-suite/build"
 ALGOS=("benchmark_dovetailsort" "benchmark_ips4oparallel" "benchmark_plss" "benchmark_plis" "benchmark_ips2raparallel")
 DATATYPES=(uint32 uint64 pair)
-GENERATORS=(random zipf exponential almostsorted)
+GENERATORS=(random zipf exponential almostsorted gen_graph)
 MIN_LOG=32
 MAX_LOG=32
 NUM_RUNS=5 # This NUM_RUNS is for the C++ program's internal loop
