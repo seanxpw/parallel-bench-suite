@@ -12,8 +12,8 @@
 #include <errno.h>  // For errno
 // Global file descriptors, initialized to -1 (invalid)
 // Definition of global variables, initialized to an invalid state
-int g_perf_ctl_fd = -1;
-int g_perf_ctl_ack_fd = -1;
+volatile int g_perf_ctl_fd = -1;
+volatile int g_perf_ctl_ack_fd = -1;
 
 namespace PerfControl {
 
@@ -108,6 +108,8 @@ bool init(const char* ctl_pipe_path, const char* ack_pipe_path) {
 
     std::cout << "[PerfControl] Successfully opened FIFOs: ctl_fd=" << g_perf_ctl_fd
               << ", ack_fd=" << g_perf_ctl_ack_fd << std::endl;
+
+    
     return true;
 }
 

@@ -163,9 +163,9 @@ public:
     };
 
     // 2. Define the list of parameter sets for THIS generator
-    static constexpr std::array<ParamStruct, 2> param_list = {
+    static constexpr std::array<ParamStruct, 1> param_list = {
         ParamStruct{"/data/zmen002/kdtree/real_world/hilbert_code.in", 1000000000}, // Parameter set 0 (index 0)
-        ParamStruct{"/data/zmen002/kdtree/real_world/morton_code.in", 1000000000}   // Parameter set 1 (index 1)
+        // ParamStruct{"/data/zmen002/kdtree/real_world/morton_code.in", 1000000000}   // Parameter set 1 (index 1)
     };
 
     // 3. Define num_params (required by Base or trait checks)

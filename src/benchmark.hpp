@@ -133,7 +133,7 @@ namespace detail { // Encapsulate helper
         }
         // --- End Benchmark Checker Logic (Pre-sort) ---
 
-        if (g_perf_ctl_fd != -1)
+        if (run_iteration_id!=0 && g_perf_ctl_fd != -1)
         { // 或者检查 perf_initialized 状态
             if (!PerfControl::start_profiling("my_target_function_call"))
             {
@@ -144,7 +144,7 @@ namespace detail { // Encapsulate helper
         const auto [preprocessing, sorting] = execute_sorting_step<T, Vector, Algo>(
             current_data_ptr, current_data_end_ptr, config);
 
-        if (g_perf_ctl_fd != -1)
+        if (run_iteration_id!=0 && g_perf_ctl_fd != -1)
         {
             if (!PerfControl::stop_profiling("my_target_function_call"))
             {
@@ -432,6 +432,13 @@ void selectAndExecGenerators(const Config &config)
 
         if (!perf_initialized) {
             std::cerr << "Failed to initialize PerfControl. Proceeding without perf signaling." << std::endl;
+        }
+        if ( g_perf_ctl_fd != -1)
+        {
+            if (!PerfControl::stop_profiling("init stop"))
+            {
+                std::cerr << "[PerfControl] Failed to stop profiling." << std::endl;
+            }
         }
         selectAndExecDatatype<Algorithms, Datatypes>(config);
     
