@@ -23,7 +23,7 @@ Then I ran perf record and try to find what funtion produces the TLB miss ans pa
 The dTLB and page faults for Dovetail and PLIS both lies in the same ParlayLib internal file called `counting_sort.h`.
 
 ---
-### **📄 Page Faults Analysis**
+### **Page Faults Analysis**
 
 The `perf` log indicates that significant page faults occur within the `parlay::internal::seq_write_` function. This function is responsible for writing elements to their destination buckets during the sorting process.
 
@@ -118,7 +118,7 @@ Percent│         lea       0x10(%rax),%rcx
        │244:    mov       (%r12),%rax
 ```
 ---
-### **🧠 dTLB Load Misses Analysis**
+### **dTLB Load Misses Analysis**
 
 The `dTLB-load-misses` indicate that the processor frequently fails to find the virtual-to-physical address translation in the Translation Lookaside Buffer when trying to read data. This often happens with strided memory access patterns.
 
@@ -217,7 +217,7 @@ Percent│       if (buffer != nullptr) {                                       
 * The key takeaway is that the **strided memory access pattern** when reading the `counts` array (to implement `v += counts[j * num_buckets + i];`) is the root cause of the dTLB load misses. The high percentages on arithmetic instructions reflect the processor stalls caused by these memory access latencies.
 
 ---
-### **💾 dTLB Store Misses Analysis**
+### **dTLB Store Misses Analysis**
 
 The `dTLB-store-misses` event indicates that the processor frequently fails to find the virtual-to-physical address translation in the TLB when attempting to *write* data to memory. Similar to load misses, this can be exacerbated by strided write patterns.
 
