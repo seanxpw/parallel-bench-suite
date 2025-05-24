@@ -48,6 +48,7 @@ KEY_EVENT_MAPPINGS = {
     # --- NEW MAPPINGS for context-switches and faults ---
     "CONTEXT_SWITCHES": ["context-switches:u", "context-switches", "cs"],
     "PAGE_FAULTS": ["faults:u", "faults", "page-faults:u", "page-faults"],
+    "MINOR_PAGE_FAULTS": ["minor-faults:u", "minor-faults"],
 }
 
 def get_event_value(stats_dict, generic_event_key):

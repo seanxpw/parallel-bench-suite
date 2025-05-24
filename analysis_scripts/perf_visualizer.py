@@ -50,14 +50,16 @@ METRICS_TO_PLOT = {
     "L1 ICache Load Misses": {"lower_is_better": True, "unit": "Count"},
 
     # --- OS Interaction / System Level --- (新增指标可以放在这里)
-    "Context Switches": {"lower_is_better": True, "unit": "Count"}, # 新增
+    # "Context Switches": {"lower_is_better": True, "unit": "Count"}, # 新增
     "Page Faults": {"lower_is_better": True, "unit": "Count"},      # 新增
+    "Minor Page Faults": {"lower_is_better": True, "unit": "Count"}, # 新增：次要缺页
 }
 
 # 这些全局常量用于图形的标题，从你的脚本中保留
-TOTAL_THREAD_GRAPH = 48 # 你的脚本中是 -t ${TOTAL_CORES}，这里假设一个具体值或脚本会动态传入
+TOTAL_THREAD_GRAPH = 64 # 你的脚本中是 -t ${TOTAL_CORES}，这里假设一个具体值或脚本会动态传入
 TOTAL_RUNS_GRAPH = 5    # 你的脚本中 NUM_RUNS=5
-TOTAL_MEM_GRAPH = 2**32 # 你的脚本中 MIN_LOG=32, MAX_LOG=32, 2^32 是一个大小
+MIN_LOG=30
+TOTAL_MEM_GRAPH = 2**MIN_LOG # 你的脚本中 MIN_LOG=32, MAX_LOG=32, 2^32 是一个大小
 
 # generate_comparison_plots 函数 (除了 METRICS_TO_PLOT 的更新外，核心逻辑保持不变)
 def generate_comparison_plots(all_algo_metrics, config_key, output_dir, baseline_algo_name):
@@ -258,7 +260,7 @@ def generate_comparison_plots(all_algo_metrics, config_key, output_dir, baseline
     # 为简单起见，这里使用你在脚本中定义的全局常量（如果适用）
     # 或者你可以将这些值作为参数传递给 generate_comparison_plots
     fig_title = (f'Algorithm Comparison: Generator={generator}, DataType={data_type}\n'
-                 f'(Threads={TOTAL_THREAD_GRAPH}, Internal Runs={TOTAL_RUNS_GRAPH}, Input Size=2^{MIN_LOG})') # MIN_LOG 假设与MAX_LOG相同
+                 f'(Threads={TOTAL_THREAD_GRAPH}, Internal Runs={TOTAL_RUNS_GRAPH}, Input Memory Size=2^{MIN_LOG})') # MIN_LOG 假设与MAX_LOG相同
 
     fig.suptitle(fig_title, fontsize=14, y=0.99) # y值调整以避免与子图标题重叠
     

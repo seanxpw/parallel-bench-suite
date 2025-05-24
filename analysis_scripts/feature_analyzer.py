@@ -4,7 +4,7 @@ import numpy as np
 import sys
 import os # For path joining
 
-# 检查依赖库 (这部分与你提供的代码一致)
+
 try:
     from sklearn.ensemble import RandomForestRegressor
     from sklearn.impute import SimpleImputer # 确保 SimpleImputer 已导入
@@ -87,16 +87,15 @@ TARGET_KEY = "Average Wall Time (ms)" # 这个来自 wall_time_parser.py 的输�
 # perform_feature_importance 函数 (与你提供的版本基本一致)
 # 它的输入 all_metrics_data 预期是一个列表的字典，每个字典是一行数据
 # (这与 analyze_main.py 中 all_metrics_for_ml_and_plots 的扁平化处理后的结构一致)
-def perform_feature_importance(data_for_df_list, output_dir, baseline_algo_name):
+# 修改函数参数名以更准确地反映其接收的嵌套字典结构
+def perform_feature_importance(nested_metrics_data, output_dir, baseline_algo_name_to_exclude):
     """
     使用 RandomForestRegressor 执行特征重要性分析。
+
     Args:
-        data_for_df_list (list): 包含字典的列表，每个字典代表一行数据，
-                                 用于创建 pandas DataFrame。
-                                 这个列表是由 analyze_main.py 中对 
-                                 all_metrics_for_ml_and_plots 进行扁平化处理后得到的。
-        output_dir (str): 保存特征重要性图的目录。
-        baseline_algo_name (str): 基线算法名称，用于从分析中排除。
+        nested_metrics_data (dict): 结构为 {(gen, type): {algo: {metric_key: value}}} 的数据
+        output_dir (str): 保存特征重要性图的目录
+        baseline_algo_name_to_exclude (str): 要从分析中排除的算法名称
     """
     if not SKLEARN_AVAILABLE:
         print("\nFeature importance analysis skipped: scikit-learn not available.")
@@ -104,101 +103,77 @@ def perform_feature_importance(data_for_df_list, output_dir, baseline_algo_name)
 
     print("\n--- Performing Feature Importance Analysis for Wall Time ---")
 
-    # 在 analyze_main.py 中，all_metrics_for_ml_and_plots 的结构是:
-    # {(gen, type): {algo: {metric: value}}}
-    # perform_feature_importance 函数接收的是将这个嵌套字典扁平化处理后的列表：
-    # data_for_df = []
-    # for config_key, algo_metrics_map in all_metrics_for_ml_and_plots.items():
-    # gen, dtype = config_key
-    # for algo, metrics_dict in algo_metrics_map.items():
-    # # ... 构建 row ...
-    # data_for_df.append(row)
-    # 这个扁平化过程应该在 analyze_main.py 中完成，然后再传递给这个函数。
-    # 你提供的 feature_analyzer.py 脚本中，perform_feature_importance 内部自己做了这个扁平化。
-    # 我将保持你原有的扁平化逻辑，假设 all_metrics_data 是 {(gen, type): {algo: {metric: value}}} 结构。
-
-    data_for_df = []
+    data_for_df = [] # 用于构建 DataFrame 的扁平化列表
     # 展平数据，排除基线和缺少目标/特征值的运行
-    for config_key, algo_metrics in all_metrics_data.items(): # all_metrics_data 是 {(gen,type):{algo:{metrics}}}
+    # 使用正确的参数名 nested_metrics_data
+    for config_key, algo_metrics_map in nested_metrics_data.items():
         gen, dtype = config_key
-        for algo, metrics in algo_metrics.items():
-            if algo == baseline_algo_name: # 排除基线算法
+        for algo, metrics_dict in algo_metrics_map.items():
+            # 排除基线算法（或指定的要排除的算法）
+            if algo == baseline_algo_name_to_exclude:
                 continue
 
-            target_value = metrics.get(TARGET_KEY)
+            target_value = metrics_dict.get(TARGET_KEY)
+            # 确保目标值有效
             if target_value is None or not isinstance(target_value, (int, float)) or np.isnan(target_value):
                 # print(f"Debug: Skipping {algo} ({gen}, {dtype}): Missing or invalid target value for {TARGET_KEY}: {target_value}")
                 continue
 
             row = {'Algorithm': algo, 'Generator': gen, 'DataType': dtype, TARGET_KEY: target_value}
-            valid_features_for_row = True
+            # 填充特征
             for feature_key in FEATURE_KEYS_FOR_MODEL:
-                feature_value = metrics.get(feature_key)
-                if feature_value is None or not isinstance(feature_value, (int, float)) or np.isnan(feature_value) or feature_value == "N/A":
-                    # print(f"Debug: Skipping {algo} ({gen}, {dtype}): Missing or invalid value for feature '{feature_key}': {feature_value}")
-                    row[feature_key] = np.nan # 明确设置为 NaN 以便后续 imputation 处理
-                    # valid_features_for_row = False # 不再因为单个特征缺失而跳过整行，交给imputer
-                    # break
+                feature_value = metrics_dict.get(feature_key)
+                # 如果特征缺失或无效，填充为 NaN，后续由 SimpleImputer 处理
+                if feature_value is None or not isinstance(feature_value, (int, float)) or np.isnan(feature_value) or str(feature_value) == "N/A":
+                    row[feature_key] = np.nan
                 else:
                     row[feature_key] = feature_value
             
-            # if valid_features_for_row: # 即使有NaN特征，也先加入，后续统一impute
             data_for_df.append(row)
 
-    if len(data_for_df) < 2:
+    if len(data_for_df) < 2: # 模型训练至少需要2个样本
         print(f"  Warning: Insufficient valid data rows ({len(data_for_df)}) for feature importance analysis after initial filtering.", file=sys.stderr)
         return
 
     df = pd.DataFrame(data_for_df)
 
-    # 确保FEATURE_KEYS_FOR_MODEL中的列都存在于DataFrame中，如果不存在则填充NaN
-    # (通常是因为某些运行完全没有这些数据，或者所有运行都没有这些数据)
-    for feature_key in FEATURE_KEYS_FOR_MODEL:
-        if feature_key not in df.columns:
-            print(f"  Warning: Feature '{feature_key}' not found in any processed data, adding as NaN column.", file=sys.stderr)
-            df[feature_key] = np.nan
+    # 确保 FEATURE_KEYS_FOR_MODEL 中的所有列都存在于 DataFrame 中
+    # 如果列在所有数据行中都缺失，df[feature_key] 会在选择 X 时引发 KeyError
+    # 所以，在创建 X 之前，最好先筛选实际存在的特征列
+    
+    actual_feature_columns_in_df = [col for col in FEATURE_KEYS_FOR_MODEL if col in df.columns]
+    if not actual_feature_columns_in_df:
+        print("  Error: No features listed in FEATURE_KEYS_FOR_MODEL were found in the processed data.", file=sys.stderr)
+        return
 
-
-    X = df[FEATURE_KEYS_FOR_MODEL] # 选择特征列
+    X = df[actual_feature_columns_in_df] # 只选择实际存在的特征列
     y = df[TARGET_KEY]
 
-    if X.empty or y.empty or X.shape[0] != y.shape[0] or X.shape[1] == 0:
+    if X.empty or y.empty or X.shape[0] != y.shape[0] or X.shape[1] == 0 :
         print("  Error: Feature matrix (X) or target vector (y) is empty, has zero features, or mismatched after processing.", file=sys.stderr)
         return
         
     # 处理 NaN 值 (使用 SimpleImputer)
-    # 这个 imputer 应该在 X 只包含数值型特征时使用
     if X.isnull().values.any():
         print("  Info: NaN values found in feature data. Applying SimpleImputer with mean strategy.", file=sys.stderr)
-        # 确保 X 中所有列都是数值类型，或者只对数值列进行impute
+        # SimpleImputer 只能处理数值列
         numeric_cols = X.select_dtypes(include=np.number).columns
-        non_numeric_cols = X.select_dtypes(exclude=np.number).columns
-        
-        if len(non_numeric_cols) > 0:
-            print(f"  Warning: Non-numeric columns found in X that cannot be imputed by mean: {list(non_numeric_cols)}. These might cause errors.", file=sys.stderr)
-            # 简单处理：尝试删除这些列，或者确保它们不应该出现在FEATURE_KEYS_FOR_MODEL中
-            # X = X.drop(columns=non_numeric_cols) 
-            # feature_columns = X.columns # 更新特征列
-
-        if len(numeric_cols) > 0:
+        if not numeric_cols.empty:
             imputer = SimpleImputer(missing_values=np.nan, strategy='mean')
             X_imputed_numeric = imputer.fit_transform(X[numeric_cols])
             X_imputed_numeric_df = pd.DataFrame(X_imputed_numeric, columns=numeric_cols, index=X.index)
             
-            # 如果有非数值列，需要合并回来（如果选择保留它们的话）
-            if len(non_numeric_cols) > 0 and not X[non_numeric_cols].empty:
-                 X = pd.concat([X_imputed_numeric_df, X[non_numeric_cols]], axis=1)
-            else:
-                 X = X_imputed_numeric_df
-            
-            # 确保列顺序与 FEATURE_KEYS_FOR_MODEL 一致（如果imputation后顺序改变）
-            X = X[FEATURE_KEYS_FOR_MODEL] # Reorder/select based on original list
+            # 如果原始X中有非数值列（理论上不应该在特征里），需要考虑如何处理
+            # 为简单起见，这里假设 FEATURE_KEYS_FOR_MODEL 只包含最终应为数值的特征
+            X = X_imputed_numeric_df
+            # 重新确保 X 只包含我们期望的特征，并且顺序一致（如果 SimpleImputer 改变了顺序）
+            # X = X[actual_feature_columns_in_df] # 确保列和顺序
         else:
-            print("  Warning: No numeric columns found in X to impute. Skipping imputation.", file=sys.stderr)
-            # 如果所有列都是非数值且有NaN，模型会失败
-            if X.isnull().values.any():
-                print("  Error: NaN values persist in non-numeric columns. Cannot train model.", file=sys.stderr)
-                return
+            print("  Warning: No numeric columns with NaN values found to impute. If NaNs persist in non-numeric features, model training might fail.", file=sys.stderr)
+            if X.isnull().values.any(): # 再次检查是否还有NaN（可能在非数值列中）
+                 print("  Error: NaN values persist in X after attempting imputation, possibly in non-numeric columns. Cannot train model.", file=sys.stderr)
+                 return
+
 
 
     # 训练 RandomForestRegressor 模型 (与你提供的代码一致)
