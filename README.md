@@ -14,19 +14,21 @@ The framework consists of three main parts:
 
 ## Some Findings So Far
 
-The observations indicate that sorting algorithms related to ParlayLib tend to incur significantly more page faults and dTLB misses. I've also tried to switch to another complier or compile with `CIlK` realted flag, which seemed no help, indicating it has a big chance that there might be somewhere to improve for ParlayLib.
+Our observations indicate that sorting algorithms based on ParlayLib tend to incur significantly more page faults and dTLB misses. I also tried using a different compiler and compiling with Cilk-related flags, but that didn’t help—suggesting that there may be room for improvement within ParlayLib itself.
 
-The following chart uses a same real-world graph input, which has one million lines of (uint64, uint64) pairs (16,000,000 bytes, 3907 4KB pages). PLIS and PLSS are both inplace versions of ParlayLib integer and sample sort. This chart records the events for 5 times in total.
+The following chart compares sorting algorithms on the same real-world graph input: one million lines of (uint64, uint64) pairs (16,000,000 bytes, 3,907 4KB pages). PLIS and PLSS are in-place versions of ParlayLib's integer and sample sorts, respectively. The chart records events across 5 runs.
 
-Page faults differ the most, while Dovetail Sort has 19,533,872 faults (3,906,774 per round), IPS4o has 41,533 (8,306 per round) faults.
+Page faults show the most dramatic differences. Dovetail Sort had 19,533,872 page faults (3,906,774 per run), while IPS4o had only 41,533 (8,306 per run).
 
-The input memory has been touched by input generator before `perf` starts to record. Thus the events should all be generated purely when running the sorting algorithms. Section **FIFO-Controlled Performance Tests** has more details of how I ran `perf`.
+Note: The input memory was fully touched by the input generator before `perf` began recording, ensuring that all measured events were purely from the sorting algorithms. See the section **FIFO-Controlled Performance Tests** for more details on how `perf` was run.
 
 ![Comparison of Page Faults and dTLB Misses](images/comparison_page_faults_dTLB.png)
 
-Then I ran perf record and tried to find what function produces the TLB miss and page faults for Dovetail PLIS PLSS. I can only get reasonable results for Dovetail and PLIS for now, here're some findings.
+I then ran `perf record` to trace which functions were responsible for the TLB misses and page faults in Dovetail, PLIS, and PLSS. So far, I was only able to gather meaningful data for Dovetail and PLIS. Here are the findings:
 
-The dTLB and page faults for Dovetail and PLIS both lie in the same ParlayLib internal file called counting_sort.h.
+For both Dovetail and PLIS, the dTLB misses and page faults largely originate from the same ParlayLib internal file: `counting_sort.h`.
+
+The source of the page faults is quite straightforward. However, it's less clear which specific lines are causing the dTLB misses—there are a few likely candidates, so take this with a grain of salt lol.
 
 ---
 ### **Page Faults Analysis**
