@@ -20,7 +20,7 @@ The following chart uses a same real-world graph input, which has one million li
 
 Page faults differ the most, while Dovetail Sort has 19,533,872 faults (3,906,774 per round), IPS4o has 41,533 (8,306 per round) faults.
 
-The input memory has been touched by input generator before `perf` starts to record. Thus the events should all be generated purely when running the sorting algorithms.
+The input memory has been touched by input generator before `perf` starts to record. Thus the events should all be generated purely when running the sorting algorithms. Section **FIFO-Controlled Performance Tests** has more details of how I ran `perf`.
 
 ![Comparison of Page Faults and dTLB Misses](images/comparison_page_faults_dTLB.png)
 
@@ -343,7 +343,7 @@ Percent│       _ZZN6parlay8internal11count_sort_INS_26uninitialized_relocate_t
        // Perf log snippet ends before the jne, assuming it loops to c0
 ```
 
-**Explanation of `perf` Logs for dTLB Store Misses (Revised):**
+**Explanation of `perf` Logs for dTLB Store Misses:**
 * The symbols indicate execution within `parlay::internal::count_sort_`.
 * The critical instruction is `mov %rax,(%r10)` (with very low self-percentage like 0.01-0.02%), which performs the **store operation**. This is where the dTLB store miss is triggered. The C++ annotation `dest_offsets[j * num_buckets + i] = v;` (or similar) from `perf` accurately reflects the conceptual operation of writing a calculated destination iterator/pointer `v` (held in `%rax`) to a location in the `dest_offsets` array (address in `%r10`).
 * The write access pattern `dest_offsets[block_idx * num_buckets + bucket_idx]` (as shown in the C++ code for populating `dest_offsets`) is **strided**, which is the primary cause of dTLB store misses.
