@@ -14,11 +14,17 @@ The framework consists of three main parts:
 
 ## Some Findings So Far
 
-The observations indicate that sorting algorithms related to ParlayLib tend to incur significantly more page faults and dTLB misses.
+The observations indicate that sorting algorithms related to ParlayLib tend to incur significantly more page faults and dTLB misses. I've also tried to switch to another complier or compile with `CIlK` realted flag, which seemed no help, indicating it has a big chance that there might be somewhere to improve for ParlayLib.
+
+The following chart uses a same real-world graph input, which has one million lines of (uint64, uint64) pairs (16,000,000 bytes, 3907 4KB pages). PLIS and PLSS are both inplace versions of ParlayLib integer and sample sort. This chart records the events for 5 times in total.
+
+Page faults differ the most, while Dovetail Sort has 19,533,872 faults (3,906,774 per round), IPS4o has 41,533 (8,306 per round) faults.
+
+The input memory has been touched by input generator before `perf` starts to record. Thus the events should all be generated purely when running the sorting algorithms.
 
 ![Comparison of Page Faults and dTLB Misses](images/comparison_page_faults_dTLB.png)
 
-Then I ran perf record and tried to find what function produces the TLB miss and page faults Dovetail PLIS PLSS. I can only get reasonable results for Dovetail and PLIS fornow, here's the findings.
+Then I ran perf record and tried to find what function produces the TLB miss and page faults for Dovetail PLIS PLSS. I can only get reasonable results for Dovetail and PLIS for now, here're some findings.
 
 The dTLB and page faults for Dovetail and PLIS both lie in the same ParlayLib internal file called counting_sort.h.
 
@@ -38,7 +44,6 @@ void seq_write_(InSeq In, KeySeq Keys, OffsetIterator offsets, size_t num_bucket
   using oi = typename std::iterator_traits<OffsetIterator>::value_type;
   auto local_offsets = sequence<oi>::uninitialized(num_buckets);
   for (size_t i = 0; i < num_buckets; i++) local_offsets[i] = offsets[i];
-
   for (size_t j = 0; j < In.size(); j++) {
     oi k = local_offsets[Keys[j]]++;
     // needs to be made portable
@@ -72,9 +77,9 @@ parallel_for(0, num_blocks,
 
 **Invocation within DovetailSort (implemented by `parlay::integer_sort2_`)**
 
-In the context of the DovetailSort algorithm (as implemented by `parlay::integer_sort2_` in `our_integer_sort.h`), the specific `internal::count_sort_` call that leads to the problematic `seq_write_` invocation is the one used for distributing elements based on the `get_bits` (derived from the `lookup` lambda involving `heavy_id`). This occurs after the sampling and heavy/light key identification phase.
+In the context of the DovetailSort algorithm (as implemented by `parlay::integer_sort2_` in `integer_sort.h`), the specific `internal::count_sort_` call that leads to the problematic `seq_write_` invocation is the one used for distributing elements based on the `get_bits` (derived from the `lookup` lambda involving `heavy_id`). This occurs after the sampling and heavy/light key identification phase.
 
-Relevant code snippet from `parlay::integer_sort2_` (in `our_integer_sort.h`):
+Relevant code snippet from `parlay::integer_sort2_` (in `integer_sort.h`):
 ```cpp
 // Inside parlay::integer_sort2_
 // ... (after sampling and definition of 'lookup' lambda and 'get_bits')
