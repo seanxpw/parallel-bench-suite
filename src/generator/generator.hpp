@@ -527,5 +527,6 @@ using Generators =
         Sequence<false, GenTwicedupes,
         Sequence<false, GenEightdupes,
         Sequence<false, GenGraph,
+        Sequence<false, GenRNASequence,
         Sequence<true,  GenAlmostsorted
-    >>>>>>>>>>>>>>;
+    >>>>>>>>>>>>>>>;

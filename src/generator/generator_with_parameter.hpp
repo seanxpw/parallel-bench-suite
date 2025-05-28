@@ -318,3 +318,155 @@ private:
         // at least once across the entire program execution.
     }
 }; // End class
+
+
+
+class GenRNASequence : public ParameterizedGeneratorBase<GenRNASequence>, public RealWorldData {
+public:
+    struct ParamStruct {
+        const char* bin_filename;
+        size_t target_column_idx; // The column to extract (0-indexed)
+        // We will read num_sequences and chunks_per_sequence from the .bin file header
+    };
+
+    static constexpr std::array<ParamStruct, 1> param_list = {
+        ParamStruct{"/home/csgrads/xwang605/data/ena.bin", 0} // Extract 0th column
+    };
+
+    static constexpr size_t num_params() { return param_list.size(); }
+
+    GenRNASequence() {}
+
+    static std::string name() { return "RNAcentral"; }
+    static std::string name(int index) {
+        if (index < 0 || static_cast<size_t>(index) >= param_list.size()) {
+            throw std::out_of_range("Index out of range for param_list in GenRNASequence::name");
+        }
+        // Extract a base name from the full path for a cleaner printed name
+        std::string full_path = param_list[index].bin_filename;
+        size_t last_slash = full_path.rfind('/');
+        std::string short_name = (last_slash == std::string::npos) ? full_path : full_path.substr(last_slash + 1);
+        return "rna_" + short_name + "_col" + std::to_string(param_list[index].target_column_idx);
+    }
+
+    template <class T>
+    constexpr static bool accepts() {
+        // This generator provides a column of uint64_t values
+        return std::is_same_v<T, uint64_t>;
+    }
+
+    size_t getSize(size_t param_index) const override {
+        if (param_index >= num_params()) {
+            throw std::out_of_range("Invalid parameter index (" + std::to_string(param_index) + ") for GenRNASequence::getSize");
+        }
+        ensure_data_loaded_static(param_index); // Ensures metadata (and data) is loaded
+        return get_cache()[param_index].size(); // The size of the cached column vector is num_sequences
+    }
+
+    template <class T>
+    void operator()(T* begin, T* end, size_t param_index) {
+        static_assert(std::is_same_v<T, uint64_t>, "GenRNASequence only supports uint64_t output type.");
+
+        if (param_index >= num_params()) {
+            throw std::out_of_range("Invalid parameter index (" + std::to_string(param_index) + ") for GenRNASequence::operator()");
+        }
+
+        ensure_data_loaded_static(param_index);
+
+        const auto& column_data = get_cache()[param_index]; // This is std::vector<uint64_t>
+
+        size_t num_elements_to_generate = std::distance(begin, end);
+        size_t available_elements = column_data.size();
+
+        size_t copy_count = std::min(num_elements_to_generate, available_elements);
+        std::copy(column_data.begin(), column_data.begin() + copy_count, begin);
+
+        if (copy_count < num_elements_to_generate) {
+            fprintf(stderr, "Warning: GenRNASequence (param %zu) provided %zu elements, but %zu were requested. Filling rest with 0.\n",
+                    param_index, available_elements, num_elements_to_generate);
+            std::fill(begin + copy_count, end, static_cast<T>(0)); // Fill remaining with 0
+        }
+    }
+
+private:
+    // --- Static Cache for column data ---
+    // Each element of the outer vector corresponds to a param_index.
+    // Each inner vector (std::vector<uint64_t>) stores the extracted column data.
+    static std::vector<std::vector<uint64_t>>& get_cache() {
+        static std::vector<std::vector<uint64_t>> cache(num_params());
+        return cache;
+    }
+
+    static std::vector<std::once_flag>& get_flags() {
+        static std::vector<std::once_flag> flags(num_params());
+        return flags;
+    }
+
+    static void load_data_for_index(size_t param_index) {
+        auto& cache_slot = get_cache()[param_index]; // Get reference to the specific vector<uint64_t>
+        const ParamStruct& params = param_list[param_index];
+
+        // printf("GenRNASequence (Static Cache): Loading column %zu for param_index %zu from %s...\n",
+        //        params.target_column_idx, param_index, params.bin_filename);
+
+        std::ifstream infile(params.bin_filename, std::ios::binary);
+        if (!infile.is_open()) {
+            throw std::runtime_error("GenRNASequence: Failed to open binary file: " + std::string(params.bin_filename));
+        }
+
+        uint64_t num_sequences_in_file = 0;
+        uint64_t chunks_per_sequence_in_file = 0;
+
+        infile.read(reinterpret_cast<char*>(&num_sequences_in_file), sizeof(num_sequences_in_file));
+        if (!infile || infile.gcount() != sizeof(num_sequences_in_file)) {
+            throw std::runtime_error("GenRNASequence: Failed to read num_sequences from " + std::string(params.bin_filename));
+        }
+
+        infile.read(reinterpret_cast<char*>(&chunks_per_sequence_in_file), sizeof(chunks_per_sequence_in_file));
+        if (!infile || infile.gcount() != sizeof(chunks_per_sequence_in_file)) {
+            throw std::runtime_error("GenRNASequence: Failed to read chunks_per_sequence from " + std::string(params.bin_filename));
+        }
+
+        if (params.target_column_idx >= chunks_per_sequence_in_file) {
+            throw std::out_of_range("GenRNASequence: target_column_idx (" + std::to_string(params.target_column_idx) +
+                                    ") is out of range for file " + std::string(params.bin_filename) +
+                                    " which has " + std::to_string(chunks_per_sequence_in_file) + " chunks/columns.");
+        }
+        
+        if (num_sequences_in_file == 0) {
+            // printf("GenRNASequence (Static Cache): File %s indicates 0 sequences. Column %zu will be empty.\n",
+            //        params.bin_filename, params.target_column_idx);
+            cache_slot.clear(); // Ensure it's empty
+            return; // Nothing to load
+        }
+
+        std::streamoff metadata_size = 2 * sizeof(uint64_t);
+        std::streamoff offset_to_column = metadata_size +
+                                         (static_cast<std::streamoff>(params.target_column_idx) * num_sequences_in_file * sizeof(uint64_t));
+
+        infile.seekg(offset_to_column, std::ios::beg);
+        if (!infile) {
+            throw std::runtime_error("GenRNASequence: Failed to seek to column " + std::to_string(params.target_column_idx) +
+                                    " in " + std::string(params.bin_filename));
+        }
+
+        cache_slot.resize(num_sequences_in_file);
+        infile.read(reinterpret_cast<char*>(cache_slot.data()),
+                    static_cast<std::streamsize>(num_sequences_in_file) * sizeof(uint64_t));
+
+        if (!infile || static_cast<size_t>(infile.gcount()) != num_sequences_in_file * sizeof(uint64_t)) {
+            throw std::runtime_error("GenRNASequence: Failed to read complete data for column " + std::to_string(params.target_column_idx) +
+                                    " from " + std::string(params.bin_filename) + ". Read " + std::to_string(infile.gcount()) + " bytes.");
+        }
+        // printf("GenRNASequence (Static Cache): Loaded %zu uint64_t values for column %zu from %s.\n",
+        //        cache_slot.size(), params.target_column_idx, params.bin_filename);
+    }
+
+    static void ensure_data_loaded_static(size_t param_index) {
+        if (param_index >= num_params()) {
+            throw std::out_of_range("Invalid parameter index (" + std::to_string(param_index) + ") for GenRNASequence::ensure_data_loaded_static");
+        }
+        auto& flags = get_flags();
+        std::call_once(flags[param_index], load_data_for_index, param_index);
+    }
+};
