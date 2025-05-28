@@ -7,13 +7,13 @@
 
 # --- Configuration ---
 BUILD_DIR="$HOME/parallel-bench-suite/build"
-ALGOS=("benchmark_dovetailsort" "benchmark_ips4oparallel" "benchmark_plss" "benchmark_plis" "benchmark_ips2raparallel")
+ALGOS=("benchmark_dovetailsort")
 # ALGOS=("benchmark_dovetailsort")
-DATATYPES=(uint32)
-GENERATORS=(random zipf exponential almostsorted) # gen_graph added
+DATATYPES=(uint64)
+GENERATORS=(random) # gen_graph added
 MIN_LOG=32 # Updated as per your script
 MAX_LOG=32 # Updated as per your script
-NUM_RUNS=5 # This NUM_RUNS is for the C++ program's internal loop
+NUM_RUNS=2 # This NUM_RUNS is for the C++ program's internal loop
 MACHINE="cheetah"
 
 PERF_CTL_PIPE="/tmp/my_app_perf_ctl.fifo"
@@ -24,7 +24,7 @@ GROUP1_EVENTS=( "cycles:u" "instructions:u" "mem_inst_retired.all_loads:u" "mem_
 GROUP2_EVENTS=( "mem_load_retired.fb_hit:u" "mem_load_retired.l1_hit:u" "mem_load_retired.l1_miss:u" "mem_load_retired.l2_hit:u" "mem_load_retired.l2_miss:u" )
 GROUP3_EVENTS=( "mem_load_retired.l3_hit:u" "LLC-stores:u" "LLC-store-misses:u" "L1-dcache-stores:u" "branch-misses:u" )
 # --- MODIFIED: Added minor-faults:u to GROUP4 ---
-GROUP4_EVENTS=( "dTLB-load-misses:u" "dTLB-store-misses:u" "iTLB-load-misses:u" "L1-icache-load-misses:u" "context-switches:u" "faults:u" "minor-faults:u" )
+GROUP4_EVENTS=( "dTLB-load-misses:u" "dTLB-store-misses:u" "iTLB-load-misses:u" "L1-icache-load-misses:u" "context-switches" "faults:u" "minor-faults:u" )
 ALL_GROUPS=("GROUP1" "GROUP2" "GROUP3" "GROUP4")
 
 # System Setup & Directory Setup

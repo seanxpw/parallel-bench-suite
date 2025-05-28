@@ -10,11 +10,11 @@
 # --- Configuration ---
 BUILD_DIR="$HOME/parallel-bench-suite/build"
 BASELINE_ALGO="benchmark_donothing"
-ALGOS=("benchmark_dovetailsort" "benchmark_ips4oparallel" "benchmark_plss" "benchmark_plis" "benchmark_ips2raparallel")
+ALGOS=("benchmark_dovetailsort") #"benchmark_ips4oparallel" "benchmark_plss" "benchmark_plis" "benchmark_ips2raparallel")
 # DATATYPES=("pair")
 # GENERATORS=("random")
-DATATYPES=(uint32 uint64 pair)
-GENERATORS=(random zipf exponential almostsorted)
+DATATYPES=(uint64)
+GENERATORS=(RNAcentral)
 MIN_LOG=32
 MAX_LOG=32
 NUM_RUNS=5
