@@ -392,15 +392,20 @@ Additionally, I ran a "do-nothing" sort (which performs everything except sortin
 ## TODO
 
 - [ ] Add Generator
-    - [X] Implement graph generator (completed on 5/5/2025)
+    - [X] Implement graph generator, (uint64, uint64) (completed on 5/5/2025)
+    - [X] Implement RNA generator, String (completed on 6/10/2025)
     - [ ] Implement database generator
-- [] Add a way of detecting memory usage
+- [ ] Add DataType
+     - [X] Add String (completed on 6/10/2025)
+     - [ ] Implement long-compare-time datatype, define a slow comp function, should edit `src/datatypes.hpp`
+- [ ] Figure out why ParlayLib not working well --- seg faults on large data size.
+- [X] Add a way of detecting memory usage
 - [X]  Add `perf` support (completed on 5/7/2025)
 - [ ] Extend the `run.sh`
 - [ ] Add interface for faster module selection
 - [X] Ran sequential 
 - [X] PAPI if possible (use FIFO to control perf) (completed on 5/14/2025)
-- [] FIX python analysis scripts
+- [ ] FIX python analysis scripts
 
 ## Below is the original IPS4o readme.
 
