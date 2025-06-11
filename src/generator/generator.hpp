@@ -50,6 +50,8 @@
 #include "zipf_distribution.hpp"
 #include "generator_with_parameter.hpp"
 
+#include "../../datasets/src/gen_ALL.hpp"
+
 template <class T>
 constexpr bool isPrimitiveDatatypeConstructable() {
     return std::is_same_v<T, pair_t>
@@ -528,5 +530,7 @@ using Generators =
         Sequence<false, GenEightdupes,
         Sequence<false, GenGraph,
         Sequence<false, GenRNASequence,
+        Sequence<false, GenSDSSCoordinates,
+        Sequence<false, GenRNASequence,
         Sequence<true,  GenAlmostsorted
-    >>>>>>>>>>>>>>>;
+    >>>>>>>>>>>>>>>>>;

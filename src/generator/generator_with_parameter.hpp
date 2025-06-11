@@ -321,7 +321,7 @@ private:
 
 
 
-class GenRNASequence : public ParameterizedGeneratorBase<GenRNASequence>, public RealWorldData {
+class GenRNASequenceInt : public ParameterizedGeneratorBase<GenRNASequenceInt>, public RealWorldData {
 public:
     struct ParamStruct {
         const char* bin_filename;
@@ -335,7 +335,7 @@ public:
 
     static constexpr size_t num_params() { return param_list.size(); }
 
-    GenRNASequence() {}
+    GenRNASequenceInt() {}
 
     static std::string name() { return "RNAcentral"; }
     static std::string name(int index) {
