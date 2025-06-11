@@ -16,8 +16,7 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
+ * * You should have received a copy of the GNU General Public License
  * along with this program. If not, see
  * <https://www.gnu.org/licenses/>.
  ******************************************************************************/
@@ -70,6 +69,13 @@ struct is_simple_key_type<byte_t> {
     static bool constexpr value = false;
 };
 
+// --- New addition for std::string ---
+template <>
+struct is_simple_key_type<std::string> {
+    static bool constexpr value = false;
+};
+
+
 template <class T>
 struct Datatype {
     using value_type = T;
@@ -84,6 +90,9 @@ struct Datatype {
     static constexpr bool hasRadulsFormat();
 };
 
+// ===================================================================
+//  name() Specializations
+// ===================================================================
 template <>
 std::string Datatype<pair_t>::name() {
     return "pair";
@@ -108,7 +117,16 @@ template <>
 std::string Datatype<uint64_t>::name() {
     return "uint64";
 }
+// --- New addition for std::string ---
+template <>
+std::string Datatype<std::string>::name() {
+    return "string";
+}
 
+
+// ===================================================================
+//  getComparator() Specializations
+// ===================================================================
 template <>
 constexpr auto Datatype<pair_t>::getComparator() {
     return std::less<pair_t>{};
@@ -133,7 +151,16 @@ template <>
 constexpr auto Datatype<uint64_t>::getComparator() {
     return std::less<uint64_t>{};
 }
+// --- New addition for std::string ---
+template <>
+constexpr auto Datatype<std::string>::getComparator() {
+    return std::less<std::string>{};
+}
 
+
+// ===================================================================
+//  getSkaKeyExtractor() Specializations
+// ===================================================================
 template <>
 constexpr auto Datatype<pair_t>::getSkaKeyExtractor() {
     return [](const pair_t& a) { return a.k; };
@@ -149,8 +176,6 @@ template <>
 constexpr auto Datatype<qtuple_t>::getSkaKeyExtractor() {
     return [](const qtuple_t& a) { return std::make_tuple(a.k1, a.k2, a.k3); };
 }
-// byte_t does not have a key extractor function
-// qtuple_t does not have a key extractor function
 template <>
 constexpr auto Datatype<uint32_t>::getSkaKeyExtractor() {
     return [](const uint32_t& a) { return a; };
@@ -163,13 +188,22 @@ template <>
 constexpr auto Datatype<double>::getSkaKeyExtractor() {
     return [](const double& a) { return a; };
 }
+// --- New addition for std::string ---
+// The key for a string is the string itself.
+// SkaSort can handle std::string directly.
+template <>
+constexpr auto Datatype<std::string>::getSkaKeyExtractor() {
+    return [](const std::string& a) { return a; };
+}
 
+
+// ===================================================================
+//  getKeyExtractor() Specializations
+// ===================================================================
 template <>
 constexpr auto Datatype<pair_t>::getKeyExtractor() {
     return [](const pair_t& a) { return a.k; };
 }
-// byte_t does not have a key extractor function
-// qtuple_t does not have a key extractor function
 template <>
 constexpr auto Datatype<uint32_t>::getKeyExtractor() {
     return [](const uint32_t& a) { return a; };
@@ -182,7 +216,17 @@ template <>
 constexpr auto Datatype<double>::getKeyExtractor() {
     return [](const double& a) { return a; };
 }
+// --- New addition for std::string ---
+// The key for a string is the string itself.
+template <>
+constexpr auto Datatype<std::string>::getKeyExtractor() {
+    return [](const std::string& a) { return a; };
+}
 
+
+// ===================================================================
+//  hasKeyExtractor() Specializations
+// ===================================================================
 template <>
 constexpr bool Datatype<pair_t>::hasKeyExtractor() {
     return true;
@@ -207,7 +251,17 @@ template <>
 constexpr bool Datatype<uint64_t>::hasKeyExtractor() {
     return true;
 }
+// --- New addition for std::string ---
+// A string is its own key.
+template <>
+constexpr bool Datatype<std::string>::hasKeyExtractor() {
+    return true;
+}
 
+
+// ===================================================================
+//  hasUnsignedKey() Specializations
+// ===================================================================
 template <>
 constexpr bool Datatype<pair_t>::hasUnsignedKey() {
     return std::is_unsigned_v<pair_t::int_type>;
@@ -232,7 +286,17 @@ template <>
 constexpr bool Datatype<uint64_t>::hasUnsignedKey() {
     return true;
 }
+// --- New addition for std::string ---
+// A string key is not considered an unsigned integer.
+template <>
+constexpr bool Datatype<std::string>::hasUnsignedKey() {
+    return false;
+}
 
+
+// ===================================================================
+//  sizeofKey() Specializations
+// ===================================================================
 template <>
 constexpr size_t Datatype<pair_t>::sizeofKey() {
     return sizeof(pair_t::int_type);
@@ -257,7 +321,19 @@ template <>
 constexpr size_t Datatype<uint64_t>::sizeofKey() {
     return sizeof(uint64_t);
 }
+// --- New addition for std::string ---
+// The size of a string key is variable. Returning 0 is a common
+// convention to indicate this, or you could return sizeof(std::string)
+// which is the size of the string object itself (pointer, size, capacity).
+template <>
+constexpr size_t Datatype<std::string>::sizeofKey() {
+  return sizeof(std::string); // Indicates variable size
+}
 
+
+// ===================================================================
+//  hasRadulsFormat() Specializations
+// ===================================================================
 template <>
 constexpr bool Datatype<pair_t>::hasRadulsFormat() {
     return sizeof(pair_t::int_type) % 8 == 0 && sizeof(pair_t) % 8 == 0;
@@ -282,12 +358,22 @@ template <>
 constexpr bool Datatype<uint64_t>::hasRadulsFormat() {
     return true;
 }
+// --- New addition for std::string ---
+// Strings do not have the Raduls format.
+template <>
+constexpr bool Datatype<std::string>::hasRadulsFormat() {
+    return false;
+}
 
+// ===================================================================
+//  Updated Datatypes List
+// ===================================================================
 using Datatypes =
         Sequence<false, Datatype<pair_t>,
         Sequence<false, Datatype<qtuple_t>,
         Sequence<false, Datatype<byte_t>,
         Sequence<false, Datatype<double>,
         Sequence<false, Datatype<uint32_t>,
-        Sequence<true,  Datatype<uint64_t>
-    >>>>>>;
+        Sequence<false, Datatype<uint64_t>,
+        Sequence<true,  Datatype<std::string>
+        >>>>>>>;
