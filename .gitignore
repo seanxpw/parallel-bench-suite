@@ -16,3 +16,7 @@ benchmark/running_times/b1*.txt
 run
 run/run.sh
 .vscode/settings.json
+
+*.csv
+*.bin
+*.fasta
