@@ -398,10 +398,10 @@ Additionally, I ran a "do-nothing" sort (which performs everything except sortin
 - [ ] Add DataType
      - [X] Add String (completed on 6/10/2025)
      - [ ] Implement long-compare-time datatype, define a slow comp function, should edit `src/datatypes.hpp`
-- [ ] Figure out why ParlayLib not working well --- seg faults on large data size.
+- [ ] Figure out why ParlayLib not working well --- page faults increases exponentially on large data size.
 - [X] Add a way of detecting memory usage
 - [X]  Add `perf` support (completed on 5/7/2025)
-- [ ] Extend the `run.sh`
+- [ ] Extend the `run.sh`, ips4o has a lot way of testing, for now I only have numa -t all
 - [ ] Add interface for faster module selection
 - [X] Ran sequential 
 - [X] PAPI if possible (use FIFO to control perf) (completed on 5/14/2025)
