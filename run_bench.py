@@ -27,14 +27,14 @@ ALGO_MAP = {
 }
 
 GENERATORS = [
-    # "random",
-    # "sorted",
+    "random",
+    "sorted",
     # "reverse",
     "zipf",
     "exponential"
 ]
 
-DATATYPES = ["uint32"]
+DATATYPES = ["uint32","uint64"]
 
 # 注意：这里的 size 是 elements（元素个数）
 SIZES = [100_000_000, 1_000_000_000, 10_000_000_000]
