@@ -70,3 +70,6 @@
 [submodule "extern/DovetailSort"]
 	path = extern/DovetailSort
 	url = git@github.com:ucrparlay/DovetailSort.git
+[submodule "extern/sample_sort_tiled"]
+	path = extern/sample_sort_tiled
+	url = https://github.com/seanxpw/sample_sort_tiled
