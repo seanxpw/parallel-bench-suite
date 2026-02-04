@@ -51,7 +51,7 @@
 	url = https://github.com/ips4o/ssssort.git
 [submodule "extern/tbb"]
 	path = extern/tbb
-	url = https://github.com/MichaelAxtmann/tbb.git
+	url = https://github.com/uxlfoundation/oneTBB.git
 [submodule "extern/WikiSort"]
 	path = extern/WikiSort
 	url = https://github.com/ips4o/WikiSort.git
@@ -66,10 +66,16 @@
 	url = https://github.com/ips4o/ips4o.git
 [submodule "extern/parlaylib"]
 	path = extern/parlaylib
-	url = git@github.com:cmuparlay/parlaylib.git
+	url = https://github.com/cmuparlay/parlaylib.git
 [submodule "extern/DovetailSort"]
 	path = extern/DovetailSort
-	url = git@github.com:ucrparlay/DovetailSort.git
+	url = https://github.com/ucrparlay/DovetailSort.git
 [submodule "extern/sample_sort_tiled"]
 	path = extern/sample_sort_tiled
 	url = https://github.com/seanxpw/sample_sort_tiled
+[submodule "extern/hwloc"]
+	path = extern/hwloc
+	url = https://github.com/open-mpi/hwloc.git
+[submodule "extern/tclap"]
+	path = extern/tclap
+	url = https://github.com/mirror/tclap.git
