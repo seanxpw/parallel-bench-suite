@@ -10,7 +10,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(default_build_type)
 add_definitions(-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS) # sometimes it says cannot identify uint64_t in txl
-
+# --- Atomic ---
+find_library(ATOMIC_LIBRARY NAMES atomic libatomic.so.1 HINTS /usr/lib64 /usr/lib)
+if(NOT ATOMIC_LIBRARY)
+    set(ATOMIC_LIBRARY "atomic")
+endif()
 #TBB path
 set(CMAKE_PREFIX_PATH "$ENV{HOME}/oneTBB/install" ${CMAKE_PREFIX_PATH})
 
@@ -187,15 +191,15 @@ endif()
 find_package(TBB REQUIRED)
 # target_link_libraries(ips4o INTERFACE TBB::tbb)
 # TBB
-# target_link_libraries(benchmark_ps4oparallel PRIVATE  atomic TBB::tbb)
-# target_link_libraries(benchmark_ips4ooldparallel PRIVATE  atomic TBB::tbb)
-target_link_libraries(benchmark_ips4oparallel PRIVATE  atomic TBB::tbb)
-target_link_libraries(benchmark_ips2raparallel PRIVATE  atomic TBB::tbb)
+# target_link_libraries(benchmark_ps4oparallel PRIVATE  ${ATOMIC_LIBRARY} TBB::tbb)
+# target_link_libraries(benchmark_ips4ooldparallel PRIVATE  ${ATOMIC_LIBRARY} TBB::tbb)
+target_link_libraries(benchmark_ips4oparallel PRIVATE  ${ATOMIC_LIBRARY} TBB::tbb)
+target_link_libraries(benchmark_ips2raparallel PRIVATE  ${ATOMIC_LIBRARY} TBB::tbb)
 # target_link_libraries(benchmark_tbbparallelsort PRIVATE  TBB::tbb)
 # Sequential algorithms
-# target_link_libraries(benchmark_ps4o PRIVATE  atomic TBB::tbb)
-target_link_libraries(benchmark_ips4o PRIVATE  atomic TBB::tbb)
-target_link_libraries(benchmark_ips2ra PRIVATE  atomic TBB::tbb)
+# target_link_libraries(benchmark_ps4o PRIVATE  ${ATOMIC_LIBRARY} TBB::tbb)
+target_link_libraries(benchmark_ips4o PRIVATE  ${ATOMIC_LIBRARY} TBB::tbb)
+target_link_libraries(benchmark_ips2ra PRIVATE  ${ATOMIC_LIBRARY} TBB::tbb)
 
 
 #MySort
@@ -243,3 +247,13 @@ target_include_directories(benchmark_dovetailsort PRIVATE extern/DovetailSort/in
 
 #DoNothing
 add_executable(benchmark_donothing src/benchmark/benchmark_donothing.cpp)
+add_subdirectory(extern/sample_sort_tiled) 
+
+add_executable(benchmark_simd src/benchmark/benchmark_simd.cpp)
+
+# 3. 只需要链接那个接口库！
+# CMake 会自动处理：
+# - Include Path: 自动加上 parlay, ips4o, tbb, 以及 sample_sort_tiled 的路径
+# - Link: 自动链上 -ltbb -lpthread -latomic 等
+# - Flags: 自动加上 -march=native
+target_link_libraries(benchmark_simd PRIVATE sample_sort_core)

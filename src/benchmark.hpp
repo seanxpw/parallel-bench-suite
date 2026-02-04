@@ -36,16 +36,16 @@ constexpr bool g_enable_benchmark_checker = true;
 #endif
 
 
-template <class T>
-std::pair<size_t, size_t> logSizes(const Config& config) {
-    // THe config is the amount of bytes memory useage.
-    const size_t type_log_size = tlx::integer_log2_ceil(sizeof(T));
-    const size_t min =
-            config.begin_logn >= type_log_size ? config.begin_logn - type_log_size : 1;
-    const size_t max =
-            config.end_logn >= type_log_size ? config.end_logn - type_log_size : 1;
-    return {min, max};
-}
+// template <class T>
+// std::pair<size_t, size_t> logSizes(const Config& config) {
+//     // THe config is the amount of bytes memory useage.
+//     const size_t type_log_size = tlx::integer_log2_ceil(sizeof(T));
+//     const size_t min =
+//             config.begin_logn >= type_log_size ? config.begin_logn - type_log_size : 1;
+//     const size_t max =
+//             config.end_logn >= type_log_size ? config.end_logn - type_log_size : 1;
+//     return {min, max};
+// }
 
 template <class T>
 constexpr int numRuns(const Config& config, size_t size, bool parallel_algo) {
@@ -224,11 +224,11 @@ namespace detail { // Encapsulate helper
 template <class T, class Generator, class Algo, template <class T1> class Vector>
 void exec(const Config &config)
 {
-    const auto [min_log_size, max_log_size] = logSizes<T>(config);
+    // const auto [min_log_size, max_log_size] = logSizes<T>(config);
 
     Generator gen_instance; // Create generator instance
 
-    for (size_t size = (1ul << min_log_size); size <= (1ul << max_log_size); size *= 2)
+    for (size_t size = config.begin_size; size <= config.end_size; size *= 2)
     {
         Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
         assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
@@ -257,11 +257,11 @@ void exec(const Config &config)
 template <class T, class Generator, class Algo, template <class T1> class Vector>
 std::enable_if_t<!std::is_base_of_v<RealWorldData, Generator>, void>
 exec(const Config& config, const size_t index) {
-    const auto [min_log_size, max_log_size] = logSizes<T>(config);
+    // const auto [min_log_size, max_log_size] = logSizes<T>(config);
 
     Generator gen_instance; // Create generator instance
 
-    for (size_t size = (1ul << min_log_size); size <= (1ul << max_log_size); size *= 2) {
+    for (size_t size = config.begin_size; size <= config.end_size; size *= 2) {
         Vector<T> v(size, std::max<size_t>(16, ALIGNMENT));
         assert(reinterpret_cast<uintptr_t>(v.get()) % ALIGNMENT == 0);
 
@@ -496,9 +496,9 @@ void selectAndExecGenerators(const Config &config)
         TCLAP::ValueArg<long> runs_arg(
                 "r", "runs",
                 "Number of runs. If the number of runs is not set, each sequential "
-                "(parallel) algorithm is executed 15 times for inputs less than 2^30 "
-                "(2^33) bytes and 2 times for larger inputs.",
-                false, -1, "long");
+                "(parallel) algorithm is executed 5 times for inputs less than 2^30 "
+                "(2^33) bytes and 5 times for larger inputs.",
+                false, 5, "long");
 
         TCLAP::ValueArg<std::string> machine_arg("m", "machine", "Name of the machine",
                                                  true, "", "string");
@@ -512,14 +512,16 @@ void selectAndExecGenerators(const Config &config)
         TCLAP::ValueArg<long> threads_arg("t", "threads", "Number of threads", true, 0,
                                           "long");
 
-        TCLAP::ValueArg<long> begin_logsize_arg(
-                "b", "beginlogsize", "The logarithm of the minimum input size in bytes.",
-                true, 0, "long");
+            // 1. 修改参数定义 (描述变了，默认值改大一点避免出错)
+            TCLAP::ValueArg<size_t> begin_size_arg( // 类型从 long 改为 size_t
+                    "b", "begin", 
+                    "Start number of elements (e.g., 1000000).", // 描述改了
+                    true, 1000000000, "size_t");
 
-        TCLAP::ValueArg<long> end_logsize_arg(
-                "e", "endlogsize",
-                "The logarithm of the maximum input size in bytes (incl)", true, 0,
-                "long");
+            TCLAP::ValueArg<size_t> end_size_arg( // 类型从 long 改为 size_t
+                    "e", "end", 
+                    "End number of elements (inclusive).",       // 描述改了
+                    true, 1000000000, "size_t");
 
         cmd.add(copyback_arg);
         cmd.add(machine_arg);
@@ -530,8 +532,8 @@ void selectAndExecGenerators(const Config &config)
         cmd.add(vector_arg);
         cmd.add(runs_arg);
         cmd.add(threads_arg);
-        cmd.add(begin_logsize_arg);
-        cmd.add(end_logsize_arg);
+        cmd.add(begin_size_arg);
+        cmd.add(end_size_arg);
 
         cmd.parse(argc, argv);
 
@@ -550,8 +552,11 @@ void selectAndExecGenerators(const Config &config)
         config.info = info_arg.getValue();
         config.num_threads = threads_arg.getValue();
         config.runs = runs_arg.getValue();
-        config.begin_logn = begin_logsize_arg.getValue();
-        config.end_logn = end_logsize_arg.getValue();
+        // config.begin_logn = begin_logsize_arg.getValue();
+        // config.end_logn = end_logsize_arg.getValue();
+        // [新增] 直接获取用户输入的数字
+        config.begin_size = begin_size_arg.getValue();
+        config.end_size = end_size_arg.getValue();
 
     } catch (TCLAP::ArgException& e)  // catch exceptions
     {

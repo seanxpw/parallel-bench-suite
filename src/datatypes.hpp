@@ -35,6 +35,12 @@
 template <class T>
 struct is_simple_key_type;
 
+// --- 新增 float 类型支持 ---
+template <>
+struct is_simple_key_type<float> {
+    static bool constexpr value = true;
+    using Type = float;
+};
 template <>
 struct is_simple_key_type<double> {
     static bool constexpr value = true;
@@ -109,6 +115,11 @@ template <>
 std::string Datatype<double>::name() {
     return "double";
 }
+// --- 新增 float 类型支持 ---
+template <>
+std::string Datatype<float>::name() {
+    return "float";
+}
 template <>
 std::string Datatype<uint32_t>::name() {
     return "uint32";
@@ -142,6 +153,11 @@ constexpr auto Datatype<qtuple_t>::getComparator() {
 template <>
 constexpr auto Datatype<double>::getComparator() {
     return std::less<double>{};
+}
+// --- 新增 float 类型支持 ---
+template <>
+constexpr auto Datatype<float>::getComparator() {
+    return std::less<float>{};
 }
 template <>
 constexpr auto Datatype<uint32_t>::getComparator() {
@@ -188,6 +204,11 @@ template <>
 constexpr auto Datatype<double>::getSkaKeyExtractor() {
     return [](const double& a) { return a; };
 }
+// --- 新增 float 类型支持 ---
+template <>
+constexpr auto Datatype<float>::getSkaKeyExtractor() {
+    return [](const float& a) { return a; };
+}
 // --- New addition for std::string ---
 // The key for a string is the string itself.
 // SkaSort can handle std::string directly.
@@ -216,6 +237,11 @@ template <>
 constexpr auto Datatype<double>::getKeyExtractor() {
     return [](const double& a) { return a; };
 }
+// --- 新增 float 类型支持 ---
+template <>
+constexpr auto Datatype<float>::getKeyExtractor() {
+    return [](const float& a) { return a; };
+}
 // --- New addition for std::string ---
 // The key for a string is the string itself.
 template <>
@@ -241,6 +267,11 @@ constexpr bool Datatype<qtuple_t>::hasKeyExtractor() {
 }
 template <>
 constexpr bool Datatype<double>::hasKeyExtractor() {
+    return true;
+}
+// --- 新增 float 类型支持 ---
+template <>
+constexpr bool Datatype<float>::hasKeyExtractor() {
     return true;
 }
 template <>
@@ -278,6 +309,11 @@ template <>
 constexpr bool Datatype<double>::hasUnsignedKey() {
     return false;
 }
+// --- 新增 float 类型支持 ---
+template <>
+constexpr bool Datatype<float>::hasUnsignedKey() {
+    return false;
+}
 template <>
 constexpr bool Datatype<uint32_t>::hasUnsignedKey() {
     return true;
@@ -312,6 +348,11 @@ constexpr size_t Datatype<qtuple_t>::sizeofKey() {
 template <>
 constexpr size_t Datatype<double>::sizeofKey() {
     return sizeof(double);
+}
+// --- 新增 float 类型支持 ---
+template <>
+constexpr size_t Datatype<float>::sizeofKey() {
+    return sizeof(float);
 }
 template <>
 constexpr size_t Datatype<uint32_t>::sizeofKey() {
@@ -350,6 +391,11 @@ template <>
 constexpr bool Datatype<double>::hasRadulsFormat() {
     return false;
 }
+// --- 新增 float 类型支持 ---
+template <>
+constexpr bool Datatype<float>::hasRadulsFormat() {
+    return false;
+}
 template <>
 constexpr bool Datatype<uint32_t>::hasRadulsFormat() {
     return false;
@@ -369,11 +415,12 @@ constexpr bool Datatype<std::string>::hasRadulsFormat() {
 //  Updated Datatypes List
 // ===================================================================
 using Datatypes =
-        Sequence<false, Datatype<pair_t>,
-        Sequence<false, Datatype<qtuple_t>,
-        Sequence<false, Datatype<byte_t>,
-        Sequence<false, Datatype<double>,
-        Sequence<false, Datatype<uint32_t>,
-        Sequence<false, Datatype<uint64_t>,
-        Sequence<true,  Datatype<std::string>
-        >>>>>>>;
+    Sequence<false, Datatype<pair_t>,
+    Sequence<false, Datatype<qtuple_t>,
+    Sequence<false, Datatype<byte_t>,
+    Sequence<false, Datatype<double>,
+    Sequence<false, Datatype<float>,
+    Sequence<false, Datatype<uint32_t>,
+    Sequence<false, Datatype<uint64_t>,
+    Sequence<true,  Datatype<std::string>
+    >>>>>>>>;

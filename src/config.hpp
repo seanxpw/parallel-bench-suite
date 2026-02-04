@@ -31,8 +31,8 @@ struct Config {
     std::string machine{""};
     int runs{0};
     int num_threads{1};
-    long begin_logn{0};
-    long end_logn{0};
+    long begin_size{0};
+    long end_size{0};
     std::vector<std::string> algos;
     std::vector<std::string> generators;
     std::vector<std::string> datatypes;

@@ -339,7 +339,11 @@ template <>
 double my_rand<double>(uint64_t x) {
     return ((double)hash64(x)) / ((double)std::numeric_limits<uint64_t>::max());
 }
-
+template <>
+float my_rand<float>(uint64_t x) {
+    // 同样将哈希值归一化到 [0, 1] 区间，但强制转换为 float
+    return ((float)hash64(x)) / ((float)std::numeric_limits<uint64_t>::max());
+}
 template <>
 uint32_t my_rand<uint32_t>(uint64_t x) {
     return hash32(x);
@@ -376,7 +380,28 @@ class GenExponential {
             }
         });
     }
+    // ==========================================
+    // 新增：针对 float 的特化 (解决了你的报错)
+    // ==========================================
+    void operator()(float* begin, float* end) {
+        using KeyType = float;
 
+        const size_t size = end - begin;
+        // 对于浮点数，不需要计算 numeric_limits::max 的 log2，
+        // 直接使用 size 的 log2 + 1 即可 (逻辑同 double)
+        const size_t lg = tlx::integer_log2_ceil(size) + 1;
+
+        std::random_device rd;
+        const uint32_t seed = rd();
+        std_parallel_for(size, [begin, lg, seed](size_t begin_idx, size_t end_idx,
+                                                 size_t thread_id) {
+            SimdMtGeneratorUint64 gen(seed + thread_id);
+            for (size_t i = begin_idx; i != end_idx; ++i) {
+                const size_t range = (size_t{1} << (gen() % lg));
+                begin[i] = my_rand<KeyType>(range + (gen() % range));
+            }
+        });
+    }
     void operator()(double* begin, double* end) {
         using KeyType = double;
 
