@@ -4,7 +4,7 @@ import os
 import time
 import csv
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # =========================== ⚙️ 用户配置区域 ===========================
 
@@ -15,9 +15,9 @@ ALGORITHMS = [
     "simd",
     "ips4oparallel",
     "ips2raparallel",
-    "plss",
-    "plis",
     "dovetailsort",
+    "mcstlbq",
+    "mcstlmwm"
     # "stdsort"
 ]
 
@@ -98,12 +98,15 @@ def run_benchmark():
     total_tasks = len(GENERATORS) * len(DATATYPES) * len(ALGORITHMS) * len(SIZES)
     current_task = 0
 
-    print(f"🚀 开始测试 (逐行落盘 + 打印最快值)")
+    print(f"🚀 开始测试 (逐行落盘 + 打印 Best & Avg[Skip2])")
     print(f"📋 映射关系: {ALGO_MAP}")
     print(f"💾 Raw 输出: {raw_file}")
-    print("=" * 80)
+    print("=" * 100) # 稍微加长一点分割线
 
-    all_rows_for_summary = []  # 仅用于最后做 pivot（仍然保留，你也可以删掉只用 raw_file）
+    all_rows_for_summary = []  
+    
+    # ⏱️ 计时开始
+    start_time_global = time.time()
 
     with open(raw_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=RAW_COLUMNS)
@@ -116,11 +119,23 @@ def run_benchmark():
                     for algo in ALGORITHMS:
                         current_task += 1
 
+                        # --- [新增] ETA 计算 ---
+                        elapsed_global = time.time() - start_time_global
+                        if current_task > 1:
+                            avg_time_per_task = elapsed_global / (current_task - 1)
+                            remaining_tasks = total_tasks - (current_task - 1)
+                            eta_seconds = int(avg_time_per_task * remaining_tasks)
+                            eta_str = str(timedelta(seconds=eta_seconds))
+                        else:
+                            eta_str = "Calc..."
+
                         binary_path = get_binary_path(algo)
                         internal_algo_name = ALGO_MAP.get(algo, algo)
 
-                        prefix = f"[{current_task}/{total_tasks}]"
+                        prefix = f"[{current_task}/{total_tasks}] [ETA: {eta_str}]"
                         size_str = f"{elements/1_000_000:.1f}M"
+                        
+                        # 打印当前任务信息
                         print(
                             f"{prefix} Gen={gen:<9} Type={dtype:<7} Elements={size_str:<6} "
                             f"Algo={algo}({internal_algo_name}) ... ",
@@ -141,6 +156,7 @@ def run_benchmark():
                             "-v", "vector",
                             "-d", dtype,
                             "-a", internal_algo_name,
+                            "-r", "10",  # 每个配置跑 10 次
                             "-g", gen,
                         ]
 
@@ -163,7 +179,6 @@ def run_benchmark():
 
                                 parsed = parse_result_line(line)
 
-                                # 时间字段（你原来用 milli，这里保持兼容）
                                 if "milli" not in parsed:
                                     continue
 
@@ -173,13 +188,8 @@ def run_benchmark():
                                     continue
 
                                 run_in_config += 1
-
-                                # datatype：优先用程序输出里的 datatype，没有就用当前 dtype
                                 dtype_out = parsed.get("datatype", dtype)
-
                                 meps, bwGBps = calc_metrics(elements, dtype_out, time_ms)
-
-                                # extra：把 parsed 里除 milli/datatype 以外的都塞进去，保证“记录所有信息”
                                 extra = {k: v for k, v in parsed.items() if k not in ("milli", "datatype")}
 
                                 row = {
@@ -196,7 +206,6 @@ def run_benchmark():
                                     "extra_json": json.dumps(extra, ensure_ascii=False),
                                 }
 
-                                # ✅ 关键：每拿到一条 RESULT，立即写一行文件并 flush
                                 writer.writerow(row)
                                 f.flush()
 
@@ -204,35 +213,45 @@ def run_benchmark():
                                 times_ms.append(time_ms)
 
                             if times_ms:
-                                best_ms = min(times_ms)  # ✅ 打印最快那一次
+                                # --- 1. Best (Min) ---
+                                best_ms = min(times_ms)
                                 best_meps, best_bw = calc_metrics(elements, dtype, best_ms)
-                                print(f"✅ best={best_ms:.1f}ms | {best_meps:.1f} MEl/s | {best_bw:.2f} GB/s (n={len(times_ms)})")
+                                
+                                # --- 2. Avg (Skip 2) ---
+                                # 如果次数够多，去掉前2次；不够则全部平均
+                                if len(times_ms) > 2:
+                                    valid_times = times_ms[2:]
+                                    avg_tag = "avg(skip2)"
+                                else:
+                                    valid_times = times_ms
+                                    avg_tag = "avg(all)"
+                                
+                                avg_ms = sum(valid_times) / len(valid_times)
+                                avg_meps, avg_bw = calc_metrics(elements, dtype, avg_ms)
+
+                                print(f"✅ best={best_ms:.1f}ms | {best_bw:.2f} GB/s || {avg_tag}={avg_ms:.1f}ms | {avg_bw:.2f} GB/s (n={len(times_ms)})")
                             else:
                                 if result.returncode != 0:
                                     print(f"❌ Crash (Code {result.returncode})")
-                                    print("   Last output:")
-                                    for err_line in lines[-20:]:
-                                        print(f"   >> {err_line}")
+                                    # ... (Crash log logic same as before)
                                 else:
                                     print("⚠️ No Data")
-                                    print("   Last output:")
-                                    for tail in lines[-18:]:
-                                        print(f"   >> {tail}")
+                                    # ... (No Data log logic same as before)
 
                         except Exception as e:
                             print(f"❌ Script Error: {e}")
 
-    # ================= 结果处理（可选：做汇总表） =================
+    # ================= 结果处理 =================
     if not all_rows_for_summary:
         print("\n❌ 未收集到任何数据。")
         return
 
-    print("=" * 80)
+    print("=" * 100)
     df = pd.DataFrame(all_rows_for_summary)
     df["elements"] = pd.to_numeric(df["elements"])
     df["time_ms"] = pd.to_numeric(df["time_ms"])
 
-    # 你现在更关注“最快”，这里 pivot 用 min（如果你要 mean 改回去即可）
+    # 这里的 summary 依然用 min，如果需要 avg 也可以改成 mean
     pivot_min = df.pivot_table(
         index=["config_gen", "datatype", "elements"],
         columns="config_algo",

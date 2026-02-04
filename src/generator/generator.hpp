@@ -193,7 +193,7 @@ class GenRandom {
                       || std::is_same_v<T, uint64_t>);
 
         std::random_device rd;
-        const uint32_t seed = rd();
+        const uint32_t seed = 42;;
         if constexpr (std::is_same_v<T, pair_t>) {
             std_parallel_for(end - begin, [begin, seed](size_t begin_idx, size_t end_idx,
                                                         size_t thread_id) {
@@ -246,7 +246,7 @@ class GenZipf {
                       || std::is_same_v<T, double>);
 
         const size_t N = 1000000;
-        const double s = 0.75;
+        const double s = 0.9;
         static auto vdistr = thrill::common::ZipfDistribution::make_vec(N, s);
         static wrs::simple_alias<uint32_t> alias(vdistr.begin(), vdistr.end());
 
@@ -257,7 +257,7 @@ class GenZipf {
                       || std::is_same_v<T, uint64_t>
                       || std::is_same_v<T, double>) {
             std::random_device rd;
-            const uint32_t seed = rd();
+            const uint32_t seed = 42;;
             std_parallel_for(end - begin, [begin, seed, &make_zipf](size_t begin_idx,
                                                                     size_t end_idx,
                                                                     size_t thread_id) {
@@ -290,7 +290,7 @@ class GenQtuple {
         if constexpr (std::is_same_v<key_type, uint32_t>
                       || std::is_same_v<key_type, uint64_t>) {
             std::random_device rd;
-            const uint32_t seed = rd();
+            const uint32_t seed = 42;;
             std_parallel_for(end - begin, [begin, seed](size_t begin_idx, size_t end_idx,
                                                         size_t thread_id) {
                 const size_t size = end_idx - begin_idx;
@@ -318,7 +318,7 @@ class GenByte {
                       && byte_t::valSize == 90);
 
         std::random_device rd;
-        const uint32_t seed = rd();
+        const uint32_t seed = 42;;
         std_parallel_for(end - begin, [begin, seed](size_t begin_idx, size_t end_idx,
                                                     size_t thread_id) {
             SimdMtGeneratorUint64 gen(seed + thread_id);
@@ -370,7 +370,7 @@ class GenExponential {
                 tlx::integer_log2_ceil(std::numeric_limits<KeyType>::max()));
 
         std::random_device rd;
-        const uint32_t seed = rd();
+        const uint32_t seed = 42;;
         std_parallel_for(size, [begin, lg, seed](size_t begin_idx, size_t end_idx,
                                                  size_t thread_id) {
             SimdMtGeneratorUint64 gen(seed + thread_id);
@@ -392,7 +392,7 @@ class GenExponential {
         const size_t lg = tlx::integer_log2_ceil(size) + 1;
 
         std::random_device rd;
-        const uint32_t seed = rd();
+        const uint32_t seed = 42;;
         std_parallel_for(size, [begin, lg, seed](size_t begin_idx, size_t end_idx,
                                                  size_t thread_id) {
             SimdMtGeneratorUint64 gen(seed + thread_id);
@@ -409,7 +409,7 @@ class GenExponential {
         const size_t lg = tlx::integer_log2_ceil(size) + 1;
 
         std::random_device rd;
-        const uint32_t seed = rd();
+        const uint32_t seed = 42;;
         std_parallel_for(size, [begin, lg, seed](size_t begin_idx, size_t end_idx,
                                                  size_t thread_id) {
             SimdMtGeneratorUint64 gen(seed + thread_id);
@@ -451,7 +451,7 @@ class GenAlmostsorted {
 
         size_t swaps = static_cast<size_t>(std::sqrt(static_cast<double>(size)));
         std::random_device rd;
-        const uint32_t seed = rd();
+        const uint32_t seed = 42;;
         static SimdMtGeneratorUint64 gen(seed);
 
         for (size_t i = 0; i < swaps; i++) {
