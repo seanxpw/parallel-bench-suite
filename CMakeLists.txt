@@ -65,58 +65,57 @@ message(STATUS "IPS4o timer: ${IPS4O_TIMER}")
 
 # ------------------------------------------------------------
 # [A] hwloc via extern submodule (build static lib only, avoid docs)
-# Provides a TARGET named "hwloc" for extern/NumaArray (topo links PRIVATE hwloc)
+# Provides a TARGET named "hwloc" for extern/NumaArray
 # ------------------------------------------------------------
 include(ExternalProject)
 
 set(HWLOC_SRC_DIR     "${CMAKE_CURRENT_SOURCE_DIR}/extern/hwloc")
-set(HWLOC_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/hwloc-install") # kept but not used (no install)
+# 定义一个固定的安装目录（就在 build/_deps 下，很安全）
+set(HWLOC_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/hwloc-install") 
+file(MAKE_DIRECTORY ${HWLOC_INSTALL_DIR}/include) # 防止 configure 前 include 目录不存在报错
 
 if(EXISTS "${HWLOC_SRC_DIR}")
+  # 配置命令：指定安装到我们预设的目录
   if(EXISTS "${HWLOC_SRC_DIR}/configure")
     set(_HWLOC_CONFIGURE_LINE
-      "${HWLOC_SRC_DIR}/configure --prefix='${HWLOC_INSTALL_DIR}' --disable-shared --enable-static"
+      "${HWLOC_SRC_DIR}/configure --prefix=${HWLOC_INSTALL_DIR} --disable-shared --enable-static"
     )
   elseif(EXISTS "${HWLOC_SRC_DIR}/autogen.sh")
     set(_HWLOC_CONFIGURE_LINE
-      "${HWLOC_SRC_DIR}/autogen.sh && ${HWLOC_SRC_DIR}/configure --prefix='${HWLOC_INSTALL_DIR}' --disable-shared --enable-static"
+      "${HWLOC_SRC_DIR}/autogen.sh && ${HWLOC_SRC_DIR}/configure --prefix=${HWLOC_INSTALL_DIR} --disable-shared --enable-static"
     )
   else()
-    message(FATAL_ERROR "extern/hwloc exists but no configure/autogen.sh found. Please check hwloc submodule checkout.")
+    message(FATAL_ERROR "extern/hwloc exists but no configure/autogen.sh found.")
   endif()
 
   ExternalProject_Add(hwloc_ep
     SOURCE_DIR "${HWLOC_SRC_DIR}"
     CONFIGURE_COMMAND /bin/sh -c "${_HWLOC_CONFIGURE_LINE}"
-    # Build only core lib; avoid doc/ latex
-    BUILD_COMMAND /bin/sh -c "set -e; cd '${HWLOC_SRC_DIR}'; \
-      if [ -d hwloc ]; then $(MAKE) -j -C hwloc; \
-      elif [ -d src ]; then $(MAKE) -j -C src; \
-      elif [ -d src/hwloc ]; then $(MAKE) -j -C src/hwloc; \
-      else echo 'Cannot find hwloc build directory (hwloc/ or src/).'; exit 2; fi"
-    INSTALL_COMMAND ""
+    # 编译命令：标准 make
+    BUILD_COMMAND $(MAKE) -j
+    # 安装命令：开启 install，把它装到 HWLOC_INSTALL_DIR
+    INSTALL_COMMAND $(MAKE) install
     BUILD_IN_SOURCE 1
   )
 
+  # 创建 Target
   add_library(hwloc STATIC IMPORTED GLOBAL)
   add_dependencies(hwloc hwloc_ep)
 
-  # try common archive locations
-  set(_HWLOC_LIB_A "${HWLOC_SRC_DIR}/hwloc/.libs/libhwloc.a")
-  if(NOT EXISTS "${_HWLOC_LIB_A}")
-    set(_HWLOC_LIB_A "${HWLOC_SRC_DIR}/src/.libs/libhwloc.a")
-  endif()
-  if(NOT EXISTS "${_HWLOC_LIB_A}")
-    set(_HWLOC_LIB_A "${HWLOC_SRC_DIR}/src/libhwloc.a")
-  endif()
-
+  # === 关键修正 ===
+  # 不再用 if(EXISTS) 去猜，直接指向安装目录下的固定路径
+  set(_HWLOC_LIB_A "${HWLOC_INSTALL_DIR}/lib/libhwloc.a")
+  
+  # 告诉 CMake 库就在这里 (虽然现在文件还不存在，但在链接前它一定会在)
   set_target_properties(hwloc PROPERTIES
     IMPORTED_LOCATION "${_HWLOC_LIB_A}"
-    INTERFACE_INCLUDE_DIRECTORIES "${HWLOC_SRC_DIR}/include"
+    INTERFACE_INCLUDE_DIRECTORIES "${HWLOC_INSTALL_DIR}/include"
   )
 else()
-  message(WARNING "extern/hwloc not found. If you want submodule-based hwloc, add it at extern/hwloc.")
+  message(WARNING "extern/hwloc not found.")
 endif()
+
+
 # ------------------------------------------------------------
 # TCLAP (header-only)
 # ------------------------------------------------------------
@@ -334,8 +333,8 @@ target_link_libraries(benchmark_mcstlmwm PRIVATE OpenMP::OpenMP_CXX)
 add_executable(benchmark_mcstlbq src/benchmark/benchmark_mcstlbq.cpp)
 target_link_libraries(benchmark_mcstlbq PRIVATE OpenMP::OpenMP_CXX)
 
-add_executable(benchmark_stdsort src/benchmark/benchmark_stdsort.cpp)
-target_link_libraries(benchmark_stdsort PRIVATE OpenMP::OpenMP_CXX)
+# add_executable(benchmark_stdsort src/benchmark/benchmark_stdsort.cpp)
+# target_link_libraries(benchmark_stdsort PRIVATE OpenMP::OpenMP_CXX)
 
 if ("${IPPRADIXSORT}" STREQUAL "Enable")
   add_executable(benchmark_ippradixsort src/benchmark/benchmark_ippradixsort.cpp)
@@ -350,7 +349,7 @@ link_common_libs(benchmark_ips2ra)
 link_common_libs(benchmark_ips2raparallel)
 link_common_libs(benchmark_mcstlmwm)
 link_common_libs(benchmark_mcstlbq)
-link_common_libs(benchmark_stdsort)
+# link_common_libs(benchmark_stdsort)
 if ("${IPPRADIXSORT}" STREQUAL "Enable")
   link_common_libs(benchmark_ippradixsort)
 endif()
@@ -373,8 +372,8 @@ add_executable(benchmark_dovetailsort src/benchmark/benchmark_dovetailsort.cpp)
 target_include_directories(benchmark_dovetailsort PRIVATE extern/DovetailSort/include/parlay)
 link_common_libs(benchmark_dovetailsort)
 
-add_executable(benchmark_donothing src/benchmark/benchmark_donothing.cpp)
-link_common_libs(benchmark_donothing)
+# add_executable(benchmark_donothing src/benchmark/benchmark_donothing.cpp)
+# link_common_libs(benchmark_donothing)
 
 # ------------------------------------------------------------
 # sample_sort_tiled
