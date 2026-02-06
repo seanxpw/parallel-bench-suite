@@ -49,9 +49,6 @@
 [submodule "extern/ssssort"]
 	path = extern/ssssort
 	url = https://github.com/ips4o/ssssort.git
-[submodule "extern/tbb"]
-	path = extern/tbb
-	url = https://github.com/uxlfoundation/oneTBB.git
 [submodule "extern/WikiSort"]
 	path = extern/WikiSort
 	url = https://github.com/ips4o/WikiSort.git
@@ -79,3 +76,6 @@
 [submodule "extern/tclap"]
 	path = extern/tclap
 	url = https://github.com/mirror/tclap.git
+[submodule "extern/tbb"]
+	path = extern/tbb
+	url = https://github.com/uxlfoundation/oneTBB.git
