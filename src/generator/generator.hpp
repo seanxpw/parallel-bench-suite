@@ -246,7 +246,7 @@ class GenZipf {
                       || std::is_same_v<T, double>);
 
         const size_t N = 1000000;
-        const double s = 0.9;
+        const double s = 1.2;
         static auto vdistr = thrill::common::ZipfDistribution::make_vec(N, s);
         static wrs::simple_alias<uint32_t> alias(vdistr.begin(), vdistr.end());
 

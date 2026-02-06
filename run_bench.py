@@ -17,7 +17,9 @@ ALGORITHMS = [
     "ips2raparallel",
     "dovetailsort",
     "mcstlbq",
-    "mcstlmwm"
+    "mcstlmwm",   # <- 修复：补逗号
+    "plss",       # <- 修复：补逗号
+    "plis"
     # "stdsort"
 ]
 
@@ -28,13 +30,13 @@ ALGO_MAP = {
 
 GENERATORS = [
     "random",
-    "sorted",
+    # "sorted",
     # "reverse",
     "zipf",
     "exponential"
 ]
 
-DATATYPES = ["uint32","uint64"]
+DATATYPES = ["uint32", "uint64"]
 
 # 注意：这里的 size 是 elements（元素个数）
 SIZES = [100_000_000, 1_000_000_000, 10_000_000_000]
@@ -101,10 +103,10 @@ def run_benchmark():
     print(f"🚀 开始测试 (逐行落盘 + 打印 Best & Avg[Skip2])")
     print(f"📋 映射关系: {ALGO_MAP}")
     print(f"💾 Raw 输出: {raw_file}")
-    print("=" * 100) # 稍微加长一点分割线
+    print("=" * 100)
 
-    all_rows_for_summary = []  
-    
+    all_rows_for_summary = []
+
     # ⏱️ 计时开始
     start_time_global = time.time()
 
@@ -119,7 +121,7 @@ def run_benchmark():
                     for algo in ALGORITHMS:
                         current_task += 1
 
-                        # --- [新增] ETA 计算 ---
+                        # ETA 计算
                         elapsed_global = time.time() - start_time_global
                         if current_task > 1:
                             avg_time_per_task = elapsed_global / (current_task - 1)
@@ -134,17 +136,16 @@ def run_benchmark():
 
                         prefix = f"[{current_task}/{total_tasks}] [ETA: {eta_str}]"
                         size_str = f"{elements/1_000_000:.1f}M"
-                        
-                        # 打印当前任务信息
+
                         print(
-                            f"{prefix} Gen={gen:<9} Type={dtype:<7} Elements={size_str:<6} "
+                            f"{prefix} Gen={gen:<9} Type={dtype:<7} Elements={size_str:<8} "
                             f"Algo={algo}({internal_algo_name}) ... ",
                             end="",
                             flush=True
                         )
 
                         if not os.path.exists(binary_path):
-                            print("⏭️  Skip (Binary Missing)")
+                            print("⏭️ Skip (Binary Missing)")
                             continue
 
                         cmd = [
@@ -213,30 +214,30 @@ def run_benchmark():
                                 times_ms.append(time_ms)
 
                             if times_ms:
-                                # --- 1. Best (Min) ---
+                                # 1) Best (Min)
                                 best_ms = min(times_ms)
-                                best_meps, best_bw = calc_metrics(elements, dtype, best_ms)
-                                
-                                # --- 2. Avg (Skip 2) ---
-                                # 如果次数够多，去掉前2次；不够则全部平均
+                                _, best_bw = calc_metrics(elements, dtype, best_ms)
+
+                                # 2) Avg (Skip 2) / Avg(All)
                                 if len(times_ms) > 2:
                                     valid_times = times_ms[2:]
                                     avg_tag = "avg(skip2)"
                                 else:
                                     valid_times = times_ms
                                     avg_tag = "avg(all)"
-                                
-                                avg_ms = sum(valid_times) / len(valid_times)
-                                avg_meps, avg_bw = calc_metrics(elements, dtype, avg_ms)
 
-                                print(f"✅ best={best_ms:.1f}ms | {best_bw:.2f} GB/s || {avg_tag}={avg_ms:.1f}ms | {avg_bw:.2f} GB/s (n={len(times_ms)})")
+                                avg_ms = sum(valid_times) / len(valid_times)
+                                _, avg_bw = calc_metrics(elements, dtype, avg_ms)
+
+                                print(
+                                    f"✅ best={best_ms:.1f}ms | {best_bw:.2f} GB/s || "
+                                    f"{avg_tag}={avg_ms:.1f}ms | {avg_bw:.2f} GB/s (n={len(times_ms)})"
+                                )
                             else:
                                 if result.returncode != 0:
                                     print(f"❌ Crash (Code {result.returncode})")
-                                    # ... (Crash log logic same as before)
                                 else:
                                     print("⚠️ No Data")
-                                    # ... (No Data log logic same as before)
 
                         except Exception as e:
                             print(f"❌ Script Error: {e}")
@@ -250,19 +251,53 @@ def run_benchmark():
     df = pd.DataFrame(all_rows_for_summary)
     df["elements"] = pd.to_numeric(df["elements"])
     df["time_ms"] = pd.to_numeric(df["time_ms"])
+    df["run_in_config"] = pd.to_numeric(df["run_in_config"], errors="coerce")
 
-    # 这里的 summary 依然用 min，如果需要 avg 也可以改成 mean
+    index_cols = ["config_gen", "datatype", "elements"]
+
+    # 1) 最快(min)
     pivot_min = df.pivot_table(
-        index=["config_gen", "datatype", "elements"],
+        index=index_cols,
         columns="config_algo",
         values="time_ms",
         aggfunc="min"
     )
+    summary_best_file = os.path.join(OUTPUT_DIR, f"summary_best_{timestamp}.csv")
+    pivot_min.to_csv(summary_best_file)
+    print(f"💾 汇总表格(最快/min): {summary_best_file}")
 
-    summary_file = os.path.join(OUTPUT_DIR, f"summary_best_{timestamp}.csv")
-    pivot_min.to_csv(summary_file)
-    print(f"💾 汇总表格(最快/min): {summary_file}")
+    # 2) 均值(mean, all runs)
+    pivot_mean = df.pivot_table(
+        index=index_cols,
+        columns="config_algo",
+        values="time_ms",
+        aggfunc="mean"
+    )
+    summary_mean_file = os.path.join(OUTPUT_DIR, f"summary_mean_{timestamp}.csv")
+    pivot_mean.to_csv(summary_mean_file)
+    print(f"💾 汇总表格(均值/all): {summary_mean_file}")
+
+    # 3) 均值(mean, skip first 2 runs per config)
+    # 每个配置内去掉 run_in_config <= 2，再做 mean
+    df_skip2 = df[df["run_in_config"] > 2].copy()
+    if not df_skip2.empty:
+        pivot_mean_skip2 = df_skip2.pivot_table(
+            index=index_cols,
+            columns="config_algo",
+            values="time_ms",
+            aggfunc="mean"
+        )
+        summary_mean_skip2_file = os.path.join(OUTPUT_DIR, f"summary_mean_skip2_{timestamp}.csv")
+        pivot_mean_skip2.to_csv(summary_mean_skip2_file)
+        print(f"💾 汇总表格(均值/skip2): {summary_mean_skip2_file}")
+    else:
+        print("⚠️ skip2 后无数据，未生成 summary_mean_skip2")
+
+    print("\n预览(最快/min):")
     print(pivot_min.round(1).fillna("-").head(20))
+
+    print("\n预览(均值/all):")
+    print(pivot_mean.round(1).fillna("-").head(20))
 
 if __name__ == "__main__":
     run_benchmark()
