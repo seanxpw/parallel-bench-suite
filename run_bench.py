@@ -39,7 +39,7 @@ GENERATORS = [
 DATATYPES = ["uint32", "uint64"]
 
 # 注意：这里的 size 是 elements（元素个数）
-SIZES = [100_000_000, 1_000_000_000, 5_000_000_000]
+SIZES = [100_000_000, 1_000_000_000, 10_000_000_000]
 
 OUTPUT_DIR = "bench_results_v5"
 
